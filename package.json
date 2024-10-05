@@ -1,0 +1,25 @@
+{
+  "name": "noads",
+  "version": "1.0.0",
+  "description": "A simple ad blocker that removes specific DOM elements using CSS selectors",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc && npm run scss",
+    "watch:tsc": "tsc -w",
+    "scss": "node-sass src/styles.scss dist/styles.css --output-style compressed --no-source-map",
+    "watch:scss": "node-sass src/styles.scss dist/styles.css --output-style compressed --no-source-map --watch",
+    "dev": "concurrently \"npm run watch:tsc\" \"npm run watch:scss\""
+  },
+  "keywords": [
+    "chrome-extension",
+    "typescript"
+  ],
+  "author": "Bryan Chen",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chrome": "^0.0.237",
+    "concurrently": "^8.2.0",
+    "node-sass": "^8.0.0",
+    "typescript": "^5.0.4"
+  }
+}

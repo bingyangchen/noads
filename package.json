@@ -1,6 +1,6 @@
 {
   "name": "noads",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "A simple ad blocker that removes specific DOM elements using CSS selectors",
   "main": "dist/main.js",
   "scripts": {
@@ -14,7 +14,7 @@
     "chrome-extension",
     "typescript"
   ],
-  "author": "Bryan Chen",
+  "author": "Bing-Yang Chen",
   "license": "MIT",
   "devDependencies": {
     "@types/chrome": "^0.0.237",

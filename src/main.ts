@@ -1,11 +1,13 @@
 document.addEventListener("DOMContentLoaded", function () {
-    const removeBtn = document.getElementById("removeBtn") as HTMLButtonElement;
+    const addButton = document.getElementById(
+        "add-button"
+    ) as HTMLButtonElement;
     const status = document.getElementById("status") as HTMLParagraphElement;
     const selectorsTextarea = document.getElementById(
         "selectors"
     ) as HTMLTextAreaElement;
     const selectorTagsDiv = document.getElementById(
-        "selectorTags"
+        "selector-tags"
     ) as HTMLDivElement;
 
     let allSelectors: string[] = [];
@@ -18,10 +20,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function updateSelectorTags() {
         selectorTagsDiv.innerHTML = allSelectors
-            .map(
-                (selector) =>
-                    `<span class="tag">${selector} <div class="remove-button" data-selector="${selector}">×</div></span>`
-            )
+            .map((selector) => {
+                const escapedSelector = selector.replace(/"/g, "&quot;");
+                return `<span class="tag">${escapeHtml(
+                    selector
+                )} <div class="remove-button" data-selector="${escapedSelector}">×</div></span>`;
+            })
             .join("");
         document.querySelectorAll(".remove-button").forEach((button) => {
             button.addEventListener(
@@ -29,15 +33,30 @@ document.addEventListener("DOMContentLoaded", function () {
                 function (this: HTMLButtonElement) {
                     const selectorToRemove = this.getAttribute("data-selector");
                     if (selectorToRemove) {
+                        const unescapedSelector = selectorToRemove.replace(
+                            /&quot;/g,
+                            '"'
+                        );
                         allSelectors = allSelectors.filter(
-                            (s) => s !== selectorToRemove
+                            (s) => s !== unescapedSelector
                         );
                         updateSelectorTags();
                         saveSelectors();
+                        refreshCurrentTab();
                     }
                 }
             );
         });
+    }
+
+    // Add this helper function at the end of the file
+    function escapeHtml(unsafe: string): string {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
     function saveSelectors() {
@@ -45,8 +64,18 @@ document.addEventListener("DOMContentLoaded", function () {
             status.textContent = "Selectors updated and saved.";
         });
     }
+    function refreshCurrentTab() {
+        chrome.tabs.query(
+            { active: true, currentWindow: true },
+            function (tabs) {
+                if (tabs[0].id) {
+                    chrome.tabs.reload(tabs[0].id);
+                }
+            }
+        );
+    }
 
-    removeBtn.addEventListener("click", () => {
+    addButton.addEventListener("click", () => {
         const selectorsText = selectorsTextarea.value.trim();
         const newSelectors = selectorsText
             .split("\n")
@@ -61,17 +90,7 @@ document.addEventListener("DOMContentLoaded", function () {
         allSelectors = [...new Set([...allSelectors, ...newSelectors])];
         updateSelectorTags();
         saveSelectors();
-
         selectorsTextarea.value = "";
-
-        // Refresh the current tab to apply new selectors
-        chrome.tabs.query(
-            { active: true, currentWindow: true },
-            function (tabs) {
-                if (tabs[0].id) {
-                    chrome.tabs.reload(tabs[0].id);
-                }
-            }
-        );
+        refreshCurrentTab();
     });
 });

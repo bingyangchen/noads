@@ -2,14 +2,14 @@
 
 Noads is a lightweight Chrome extension that removes specific DOM elements using CSS selectors, effectively blocking ads on web pages.
 
-## Getting Started
+## Development
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
 
 ### Prerequisites
 
 - Node.js (LTS version recommended)
-- npm (comes with Node.js)
+- npm
 - Google Chrome browser
 
 ### Installation
@@ -17,7 +17,7 @@ These instructions will get you a copy of the project up and running on your loc
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/noads.git
+   git clone https://github.com/Jamison-Chen/noads.git
    cd noads
    ```
 
@@ -27,17 +27,17 @@ These instructions will get you a copy of the project up and running on your loc
    npm install
    ```
 
-3. Build the project:
+3. Start the development server:
 
    ```bash
-   npm run build
+   npm run dev
    ```
 
 4. Load the extension in Chrome:
    - Open Chrome and navigate to `chrome://extensions`
    - Enable "Developer mode" in the top right corner
-   - Click "Load unpacked" and select the `dist` directory in the project folder
+   - Click "Load unpacked" and select the root directory of the project
 
-## Development
+## Contributing
 
-To start development with hot-reloading:
+We welcome contributions to Noads! If you have suggestions or improvements, please open an issue or submit a pull request.

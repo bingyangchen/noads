@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", () => {
     const addButton = document.getElementById(
         "add-button"
     ) as HTMLButtonElement;
@@ -9,13 +9,43 @@ document.addEventListener("DOMContentLoaded", function () {
     const selectorTagsDiv = document.getElementById(
         "selector-tags"
     ) as HTMLDivElement;
+    const extensionToggle = document.getElementById(
+        "extension-toggle"
+    ) as HTMLInputElement;
+
+    status.textContent = "Extension loaded. Ready to block ads.";
 
     let allSelectors: string[] = [];
-    chrome.storage.sync.get(["selectors"], function (result) {
+    chrome.storage.sync.get(["selectors"], (result) => {
         if (result.selectors) {
             allSelectors = result.selectors;
             updateSelectorTags();
         }
+    });
+
+    chrome.storage.sync.get(["enabled"], (result) => {
+        extensionToggle.checked = result.enabled !== false;
+        status.textContent = extensionToggle.checked
+            ? "Extension enabled."
+            : "Extension disabled.";
+    });
+
+    extensionToggle.addEventListener("change", () => {
+        const enabled = extensionToggle.checked;
+        chrome.storage.sync.set({ enabled: enabled }, () => {
+            status.textContent = enabled
+                ? "Extension enabled."
+                : "Extension disabled.";
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs[0].id) {
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        action: "toggleExtension",
+                        enabled: enabled,
+                    });
+                }
+            });
+            if (!enabled) refreshCurrentTab();
+        });
     });
 
     function updateSelectorTags() {
@@ -49,7 +79,6 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Add this helper function at the end of the file
     function escapeHtml(unsafe: string): string {
         return unsafe
             .replace(/&/g, "&amp;")
@@ -60,19 +89,16 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function saveSelectors() {
-        chrome.storage.sync.set({ selectors: allSelectors }, function () {
+        chrome.storage.sync.set({ selectors: allSelectors }, () => {
             status.textContent = "Selectors updated and saved.";
         });
     }
     function refreshCurrentTab() {
-        chrome.tabs.query(
-            { active: true, currentWindow: true },
-            function (tabs) {
-                if (tabs[0].id) {
-                    chrome.tabs.reload(tabs[0].id);
-                }
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0].id) {
+                chrome.tabs.reload(tabs[0].id);
             }
-        );
+        });
     }
 
     addButton.addEventListener("click", () => {

@@ -8,6 +8,13 @@
     </head>
     <body>
         <h1>Noads</h1>
+        <div class="switch-container">
+            <label class="switch">
+                <input type="checkbox" id="extension-toggle" checked />
+                <span class="slider round"></span>
+            </label>
+            <p id="status"></p>
+        </div>
         <p>Ad-blocking selectors:</p>
         <div id="selector-tags"></div>
         <p>Add new CSS selectors to block (one per line):</p>
@@ -16,6 +23,5 @@
             placeholder="Enter CSS selectors, one per line"
         ></textarea>
         <button id="add-button">Add Selectors</button>
-        <p id="status"></p>
     </body>
 </html>

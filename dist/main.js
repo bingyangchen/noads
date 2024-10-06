@@ -30,11 +30,16 @@ document.addEventListener("DOMContentLoaded", () => {
                     chrome.tabs.sendMessage(tabs[0].id, {
                         action: "toggleExtension",
                         enabled: enabled,
+                    }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            // The content script might not be loaded yet, so we'll refresh the tab
+                            refreshCurrentTab();
+                        }
+                        else if (!enabled)
+                            refreshCurrentTab();
                     });
                 }
             });
-            if (!enabled)
-                refreshCurrentTab();
         });
     });
     function updateSelectorTags() {

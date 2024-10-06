@@ -1,4 +1,5 @@
 "use strict";
+chrome.runtime.sendMessage({ action: "contentScriptReady" });
 let isEnabled = true;
 const removeAds = (selectors) => {
     if (!isEnabled)

@@ -38,13 +38,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 : "Extension disabled.";
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (tabs[0].id) {
-                    chrome.tabs.sendMessage(tabs[0].id, {
-                        action: "toggleExtension",
-                        enabled: enabled,
-                    });
+                    chrome.tabs.sendMessage(
+                        tabs[0].id,
+                        {
+                            action: "toggleExtension",
+                            enabled: enabled,
+                        },
+                        (response) => {
+                            if (chrome.runtime.lastError) {
+                                // The content script might not be loaded yet, so we'll refresh the tab
+                                refreshCurrentTab();
+                            } else if (!enabled) refreshCurrentTab();
+                        }
+                    );
                 }
             });
-            if (!enabled) refreshCurrentTab();
         });
     });
 

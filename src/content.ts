@@ -1,3 +1,5 @@
+chrome.runtime.sendMessage({ action: "contentScriptReady" });
+
 let isEnabled = true;
 
 const removeAds = (selectors: string[]): void => {

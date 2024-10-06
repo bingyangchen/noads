@@ -1,10 +1,10 @@
 {
   "name": "noads",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A simple ad blocker that removes specific DOM elements using CSS selectors",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc && npm run scss",
+    "build": "sh build.sh",
     "watch:tsc": "tsc -w",
     "scss": "sass --style=compressed --no-source-map src/styles.scss:dist/styles.css",
     "watch:scss": "sass --style=compressed --no-source-map --watch src/styles.scss:dist/styles.css",

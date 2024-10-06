@@ -33,10 +33,16 @@ These instructions will get you a copy of the project up and running on your loc
    npm run dev
    ```
 
-4. Load the extension in Chrome:
+4. Load and test the extension in Chrome:
    - Open Chrome and navigate to `chrome://extensions`
    - Enable "Developer mode" in the top right corner
    - Click "Load unpacked" and select the root directory of the project
+
+5. Build the extension:
+
+   ```bash
+   npm run build
+   ```
 
 ## Contributing
 

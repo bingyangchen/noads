@@ -1,8 +1,6 @@
 const DEFAULT_AD_SELECTORS = [
     "#ad",
     "#ads",
-    ".ad",
-    ".ads",
     ".adsbygoogle",
     '[id^="ad-"]',
     '[class^="ad-"]',
@@ -33,7 +31,6 @@ const DEFAULT_AD_SELECTORS = [
     '[id*="preroll"]',
     'div[aria-label*="Advertisement"]',
     "div[data-ad-container]",
-    '[class^="ad"]:not([class^="ad[a-z]"])',
     '[class^="ads"]:not([class^="ads[a-z]"])',
     ".Google-special",
 ];

@@ -116,10 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .map((s) => s.trim())
             .filter(Boolean);
 
-        if (newSelectors.length === 0) {
-            status.textContent = "Please enter at least one CSS selector.";
-            return;
-        }
+        if (newSelectors.length === 0) return;
 
         allSelectors = [...new Set([...allSelectors, ...newSelectors])];
         updateSelectorTags();

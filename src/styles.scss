@@ -21,21 +21,32 @@ button {
 textarea {
     height: 100px;
     padding: 5px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    border: 1px solid $light-gray;
+    border-radius: 8px;
     resize: vertical;
 }
 
-button {
-    background-color: #4caf50;
-    color: white;
+#add-button {
+    position: relative;
+    background-color: $green;
+    color: $white;
     padding: 10px;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
-
+    &::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 8px;
+    }
     &:hover {
-        background-color: #45a049;
+        &::after {
+            background-color: $transparent-black;
+        }
     }
 }
 
@@ -45,10 +56,11 @@ button {
     & > .tag {
         display: inline-block;
         background-color: $light-gray;
-        border-radius: 3px;
-        padding: 2px 5px;
+        border-radius: 4px;
+        padding: 3px 5px 3px 6px;
         margin: 2px;
         font-size: 12px;
+        color: $deep-gray;
         & > .remove-button {
             display: inline-flex;
             color: $deep-gray;
@@ -62,22 +74,22 @@ button {
 }
 
 h1 {
-    color: #333;
+    color: $deep-gray;
 }
 
 p {
-    color: #666;
-}
-
-#status {
-    margin-top: 10px;
-    font-weight: bold;
+    color: $gray;
+    margin-bottom: 3px;
 }
 
 .switch-container {
     display: flex;
     align-items: center;
     margin-bottom: 10px;
+    & > #status {
+        font-weight: bold;
+        margin: 0;
+    }
     & > .switch {
         position: relative;
         display: inline-block;
@@ -89,7 +101,7 @@ p {
             width: 0;
             height: 0;
             &:checked + .slider {
-                background-color: #4caf50;
+                background-color: $green;
             }
             &:checked + .slider:before {
                 transform: translateX(12px);
@@ -102,16 +114,16 @@ p {
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #ccc;
+            background-color: $light-gray;
             transition: 0.4s;
             &:before {
-                position: absolute;
                 content: "";
+                position: absolute;
                 height: 13px;
                 width: 13px;
                 left: 2px;
                 bottom: 2px;
-                background-color: white;
+                background-color: $white;
                 transition: 0.4s;
             }
             &.round {

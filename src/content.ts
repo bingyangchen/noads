@@ -5,9 +5,7 @@ let isEnabled = true;
 const removeAds = (selectors: string[]): void => {
     if (!isEnabled) return;
     selectors.forEach((selector) => {
-        document
-            .querySelectorAll(selector)
-            .forEach((element) => element.remove());
+        document.querySelectorAll(selector).forEach((el) => el.remove());
     });
 };
 
@@ -24,8 +22,11 @@ const initAdBlocker = (selectors: string[]): void => {
 };
 
 chrome.storage.sync.get(["selectors", "enabled"], (result) => {
-    isEnabled = result.enabled !== false;
-    if (result.selectors && result.selectors.length > 0 && isEnabled) {
+    if (
+        result.selectors &&
+        result.selectors.length > 0 &&
+        result.enabled !== false
+    ) {
         initAdBlocker(result.selectors);
     }
 });

@@ -31,12 +31,9 @@ document.addEventListener("DOMContentLoaded", () => {
                         action: "toggleExtension",
                         enabled: enabled,
                     }, (response) => {
-                        if (chrome.runtime.lastError) {
-                            // The content script might not be loaded yet, so we'll refresh the tab
+                        if (chrome.runtime.lastError || !enabled) {
                             refreshCurrentTab();
                         }
-                        else if (!enabled)
-                            refreshCurrentTab();
                     });
                 }
             });
@@ -50,8 +47,8 @@ document.addEventListener("DOMContentLoaded", () => {
         })
             .join("");
         document.querySelectorAll(".remove-button").forEach((button) => {
-            button.addEventListener("click", function () {
-                const selectorToRemove = this.getAttribute("data-selector");
+            button.addEventListener("click", (e) => {
+                const selectorToRemove = e.currentTarget.getAttribute("data-selector");
                 if (selectorToRemove) {
                     const unescapedSelector = selectorToRemove.replace(/&quot;/g, '"');
                     allSelectors = allSelectors.filter((s) => s !== unescapedSelector);
@@ -77,9 +74,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     function refreshCurrentTab() {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs[0].id) {
+            if (tabs[0].id)
                 chrome.tabs.reload(tabs[0].id);
-            }
         });
     }
     addButton.addEventListener("click", () => {

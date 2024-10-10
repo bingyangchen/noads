@@ -45,10 +45,9 @@ document.addEventListener("DOMContentLoaded", () => {
                             enabled: enabled,
                         },
                         (response) => {
-                            if (chrome.runtime.lastError) {
-                                // The content script might not be loaded yet, so we'll refresh the tab
+                            if (chrome.runtime.lastError || !enabled) {
                                 refreshCurrentTab();
-                            } else if (!enabled) refreshCurrentTab();
+                            }
                         }
                     );
                 }
@@ -66,27 +65,25 @@ document.addEventListener("DOMContentLoaded", () => {
             })
             .join("");
         document.querySelectorAll(".remove-button").forEach((button) => {
-            button.addEventListener(
-                "click",
-                function (this: HTMLButtonElement) {
-                    const selectorToRemove = this.getAttribute("data-selector");
-                    if (selectorToRemove) {
-                        const unescapedSelector = selectorToRemove.replace(
-                            /&quot;/g,
-                            '"'
-                        );
-                        allSelectors = allSelectors.filter(
-                            (s) => s !== unescapedSelector
-                        );
-                        updateSelectorTags();
-                        saveSelectors();
-                        refreshCurrentTab();
-                    }
+            button.addEventListener("click", (e: Event) => {
+                const selectorToRemove = (
+                    e.currentTarget as HTMLButtonElement
+                ).getAttribute("data-selector");
+                if (selectorToRemove) {
+                    const unescapedSelector = selectorToRemove.replace(
+                        /&quot;/g,
+                        '"'
+                    );
+                    allSelectors = allSelectors.filter(
+                        (s) => s !== unescapedSelector
+                    );
+                    updateSelectorTags();
+                    saveSelectors();
+                    refreshCurrentTab();
                 }
-            );
+            });
         });
     }
-
     function escapeHtml(unsafe: string): string {
         return unsafe
             .replace(/&/g, "&amp;")
@@ -95,7 +92,6 @@ document.addEventListener("DOMContentLoaded", () => {
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     }
-
     function saveSelectors() {
         chrome.storage.sync.set({ selectors: allSelectors }, () => {
             status.textContent = "Selectors updated and saved.";
@@ -103,9 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     function refreshCurrentTab() {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs[0].id) {
-                chrome.tabs.reload(tabs[0].id);
-            }
+            if (tabs[0].id) chrome.tabs.reload(tabs[0].id);
         });
     }
 

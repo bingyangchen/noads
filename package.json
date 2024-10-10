@@ -6,8 +6,8 @@
   "scripts": {
     "build": "sh build.sh",
     "watch:tsc": "tsc -w",
-    "scss": "sass --style=compressed --no-source-map src/styles.scss:dist/styles.css",
-    "watch:scss": "sass --style=compressed --no-source-map --watch src/styles.scss:dist/styles.css",
+    "scss": "sass --style=compressed --no-source-map src/styles.scss:dist/styles.css privacy-policy.scss:privacy-policy.css",
+    "watch:scss": "sass --style=compressed --no-source-map --watch src/styles.scss:dist/styles.css privacy-policy.scss:privacy-policy.css",
     "dev": "concurrently \"npm run watch:tsc\" \"npm run watch:scss\""
   },
   "keywords": [

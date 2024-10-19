@@ -17,7 +17,7 @@ rm -f build.zip
 mkdir build
 cp -r assets build/assets
 cp manifest.json build/manifest.json
-cp -r dist/* build/
+cp -r dist build/
 
 zip -r build.zip build/
 

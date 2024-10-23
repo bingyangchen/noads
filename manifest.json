@@ -2,13 +2,11 @@
   "manifest_version": 3,
   "name": "Noads",
   "short_name": "Noads",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "A simple ad blocker that removes specific DOM elements using CSS selectors",
   "permissions": [
     "activeTab",
-    "scripting",
     "storage",
-    "tabs",
     "webNavigation"
   ],
   "host_permissions": [

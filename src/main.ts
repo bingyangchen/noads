@@ -12,6 +12,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const extensionToggle = document.getElementById(
         "extension-toggle"
     ) as HTMLInputElement;
+    const whitelistInput = document.getElementById(
+        "whitelist-input"
+    ) as HTMLInputElement;
+    const addToWhitelistButton = document.getElementById(
+        "add-to-whitelist"
+    ) as HTMLButtonElement;
+    const whitelistTagsDiv = document.getElementById(
+        "whitelist-tags"
+    ) as HTMLDivElement;
 
     status.textContent = "Extension loaded. Ready to block ads.";
 
@@ -30,14 +39,30 @@ document.addEventListener("DOMContentLoaded", () => {
             : "Extension disabled.";
     });
 
+    let whitelist: string[] = [];
+    chrome.storage.sync.get(["whitelist"], (result) => {
+        if (result.whitelist) {
+            whitelist = result.whitelist;
+            updateWhitelistTags();
+        }
+    });
+
     extensionToggle.addEventListener("change", () => {
         const enabled = extensionToggle.checked;
         chrome.storage.sync.set({ enabled: enabled }, () => {
-            status.textContent = enabled
-                ? "Extension enabled."
-                : "Extension disabled.";
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                if (tabs[0].id) {
+                if (tabs[0].id && tabs[0].url) {
+                    if (isWhitelisted(tabs[0].url)) {
+                        status.textContent =
+                            "Extension disabled for this whitelisted domain.";
+                        extensionToggle.checked = false;
+                        return;
+                    }
+
+                    status.textContent = enabled
+                        ? "Extension enabled."
+                        : "Extension disabled.";
+
                     chrome.tabs.sendMessage(
                         tabs[0].id,
                         {
@@ -117,5 +142,69 @@ document.addEventListener("DOMContentLoaded", () => {
         saveSelectors();
         selectorsTextarea.value = "";
         refreshCurrentTab();
+    });
+
+    function isWhitelisted(url: string): boolean {
+        const hostname = new URL(url).hostname;
+        return whitelist.some((domain) => hostname.includes(domain));
+    }
+
+    function updateWhitelistTags() {
+        whitelistTagsDiv.innerHTML = whitelist
+            .map((domain) => {
+                const escapedDomain = escapeHtml(domain);
+                return `<span class="tag">${escapedDomain} <div class="remove-button" data-domain="${escapedDomain}">×</div></span>`;
+            })
+            .join("");
+        document
+            .querySelectorAll("#whitelist-tags .remove-button")
+            .forEach((button) => {
+                button.addEventListener("click", (e: Event) => {
+                    const domainToRemove = (
+                        e.currentTarget as HTMLButtonElement
+                    ).getAttribute("data-domain");
+                    if (domainToRemove) {
+                        removeFromWhitelist(domainToRemove);
+                        updateWhitelistTags();
+                        refreshCurrentTab();
+                    }
+                });
+            });
+    }
+
+    function saveWhitelist() {
+        chrome.storage.sync.set({ whitelist: whitelist }, () => {
+            status.textContent = "Whitelist updated and saved.";
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs[0].id) {
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        action: "updateWhitelist",
+                        whitelist: whitelist,
+                    });
+                }
+            });
+        });
+    }
+
+    function addToWhitelist(domain: string) {
+        if (!whitelist.includes(domain)) {
+            whitelist.push(domain);
+            saveWhitelist();
+            updateWhitelistTags();
+        }
+    }
+
+    function removeFromWhitelist(domain: string) {
+        whitelist = whitelist.filter((d) => d !== domain);
+        saveWhitelist();
+    }
+
+    addToWhitelistButton.addEventListener("click", () => {
+        const domain = whitelistInput.value.trim();
+        if (domain) {
+            addToWhitelist(domain);
+            whitelistInput.value = "";
+            refreshCurrentTab();
+        }
     });
 });

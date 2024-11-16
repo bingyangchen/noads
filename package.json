@@ -1,6 +1,6 @@
 {
   "name": "noads",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "A simple ad blocker that removes specific DOM elements using CSS selectors",
   "main": "dist/main.js",
   "scripts": {

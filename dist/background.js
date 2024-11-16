@@ -36,9 +36,14 @@ const DEFAULT_AD_SELECTORS = [
     ".Google-special",
 ];
 chrome.runtime.onInstalled.addListener(() => {
-    chrome.storage.sync.get(["selectors", "enabled"], (result) => {
-        if (!result.selectors) {
-            chrome.storage.sync.set({ selectors: DEFAULT_AD_SELECTORS });
+    chrome.storage.sync.get(["selectorMap", "enabled"], (result) => {
+        if (result.selectorMap.general.length === 0) {
+            chrome.storage.sync.set({
+                selectorMap: {
+                    ...result.selectorMap,
+                    general: DEFAULT_AD_SELECTORS,
+                },
+            });
         }
         if (result.enabled === undefined) {
             chrome.storage.sync.set({ enabled: true });

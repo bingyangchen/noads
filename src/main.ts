@@ -1,10 +1,18 @@
+interface SelectorMap {
+    general: string[];
+    [domain: string]: string[];
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-    const addButton = document.getElementById(
-        "add-button"
+    const addForAllButton = document.getElementById(
+        "add-for-all"
+    ) as HTMLButtonElement;
+    const addForCurrentButton = document.getElementById(
+        "add-for-current"
     ) as HTMLButtonElement;
     const status = document.getElementById("status") as HTMLParagraphElement;
     const selectorsTextarea = document.getElementById(
-        "selectors"
+        "selectors-textarea"
     ) as HTMLTextAreaElement;
     const selectorTagsDiv = document.getElementById(
         "selector-tags"
@@ -24,12 +32,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     status.textContent = "Extension loaded. Ready to block ads.";
 
-    let allSelectors: string[] = [];
-    chrome.storage.sync.get(["selectors"], (result) => {
-        if (result.selectors) {
-            allSelectors = result.selectors;
+    let selectorMap: SelectorMap = { general: [] };
+    chrome.storage.sync.get(["selectorMap"], (result) => {
+        if (result.selectorMap) {
+            selectorMap = result.selectorMap;
             updateSelectorTags();
-        }
+        } else chrome.storage.sync.set({ selectorMap: selectorMap });
     });
 
     chrome.storage.sync.get(["enabled"], (result) => {
@@ -58,11 +66,9 @@ document.addEventListener("DOMContentLoaded", () => {
                         extensionToggle.checked = false;
                         return;
                     }
-
                     status.textContent = enabled
                         ? "Extension enabled."
                         : "Extension disabled.";
-
                     chrome.tabs.sendMessage(
                         tabs[0].id,
                         {
@@ -81,34 +87,63 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function updateSelectorTags() {
-        selectorTagsDiv.innerHTML = allSelectors
-            .map((selector) => {
-                const escapedSelector = selector.replace(/"/g, "&quot;");
-                return `<span class="tag">${escapeHtml(
-                    selector
-                )} <div class="remove-button" data-selector="${escapedSelector}">×</div></span>`;
-            })
-            .join("");
-        document.querySelectorAll(".remove-button").forEach((button) => {
-            button.addEventListener("click", (e: Event) => {
-                const selectorToRemove = (
-                    e.currentTarget as HTMLButtonElement
-                ).getAttribute("data-selector");
-                if (selectorToRemove) {
-                    const unescapedSelector = selectorToRemove.replace(
-                        /&quot;/g,
-                        '"'
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs[0].url) return;
+            const allTags = Object.entries(selectorMap)
+                .filter(([domain]) => {
+                    return ["general", new URL(tabs[0].url!).hostname].includes(
+                        domain
                     );
-                    allSelectors = allSelectors.filter(
-                        (s) => s !== unescapedSelector
-                    );
-                    updateSelectorTags();
-                    saveSelectors();
-                    refreshCurrentTab();
-                }
+                })
+                .map(([domain, selectors]) => {
+                    return selectors
+                        .map((selector) => {
+                            const escapedSelector = selector.replace(
+                                /"/g,
+                                "&quot;"
+                            );
+                            const label =
+                                domain === "general"
+                                    ? `${selector}`
+                                    : `{${domain}} ${selector}`;
+                            return `<span class="tag">${escapeHtml(label)} 
+                        <div class="remove-button" 
+                            data-domain="${domain}" 
+                            data-selector="${escapedSelector}">×</div></span>`;
+                        })
+                        .join("");
+                })
+                .join("");
+            selectorTagsDiv.innerHTML = allTags;
+            document.querySelectorAll(".remove-button").forEach((button) => {
+                button.addEventListener("click", (e: Event) => {
+                    const target = e.currentTarget as HTMLButtonElement;
+                    const domain = target.getAttribute("data-domain");
+                    const selectorToRemove =
+                        target.getAttribute("data-selector");
+                    if (domain && selectorToRemove) {
+                        const unescapedSelector = selectorToRemove.replace(
+                            /&quot;/g,
+                            '"'
+                        );
+                        selectorMap[domain] = selectorMap[domain].filter(
+                            (s) => s !== unescapedSelector
+                        );
+                        if (
+                            domain !== "general" &&
+                            selectorMap[domain].length === 0
+                        ) {
+                            delete selectorMap[domain];
+                        }
+                        updateSelectorTags();
+                        saveSelectorMap();
+                        refreshCurrentTab();
+                    }
+                });
             });
         });
     }
+
     function escapeHtml(unsafe: string): string {
         return unsafe
             .replace(/&/g, "&amp;")
@@ -117,31 +152,54 @@ document.addEventListener("DOMContentLoaded", () => {
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     }
-    function saveSelectors() {
-        chrome.storage.sync.set({ selectors: allSelectors }, () => {
+
+    function saveSelectorMap() {
+        chrome.storage.sync.set({ selectorMap: selectorMap }, () => {
             status.textContent = "Selectors updated and saved.";
         });
     }
+
     function refreshCurrentTab() {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0].id) chrome.tabs.reload(tabs[0].id);
         });
     }
 
-    addButton.addEventListener("click", () => {
+    addForAllButton.addEventListener("click", () => {
         const selectorsText = selectorsTextarea.value.trim();
         const newSelectors = selectorsText
             .split("\n")
             .map((s) => s.trim())
             .filter(Boolean);
-
         if (newSelectors.length === 0) return;
-
-        allSelectors = [...new Set([...allSelectors, ...newSelectors])];
+        selectorMap.general = [
+            ...new Set([...selectorMap.general, ...newSelectors]),
+        ];
         updateSelectorTags();
-        saveSelectors();
+        saveSelectorMap();
         selectorsTextarea.value = "";
         refreshCurrentTab();
+    });
+
+    addForCurrentButton.addEventListener("click", () => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs[0].url) return;
+            const hostname = new URL(tabs[0].url).hostname;
+            const selectorsText = selectorsTextarea.value.trim();
+            const newSelectors = selectorsText
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean);
+            if (newSelectors.length === 0) return;
+            if (!selectorMap[hostname]) selectorMap[hostname] = [];
+            selectorMap[hostname] = [
+                ...new Set([...selectorMap[hostname], ...newSelectors]),
+            ];
+            updateSelectorTags();
+            saveSelectorMap();
+            selectorsTextarea.value = "";
+            refreshCurrentTab();
+        });
     });
 
     function isWhitelisted(url: string): boolean {

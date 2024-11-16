@@ -48,9 +48,18 @@ textarea {
     resize: vertical;
 }
 
-#add-button {
-    background-color: $green;
-    color: $white;
+.button-container {
+    display: flex;
+    justify-content: space-around;
+    gap: 10px;
+    #add-for-all {
+        background-color: $green;
+        color: $white;
+    }
+    #add-for-current {
+        background-color: $blue;
+        color: $white;
+    }
 }
 
 #selector-tags,

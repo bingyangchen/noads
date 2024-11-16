@@ -18,11 +18,14 @@
         <p>Ad-blocking selectors:</p>
         <div id="selector-tags"></div>
         <textarea
-            id="selectors"
+            id="selectors-textarea"
             placeholder="Enter CSS selectors, one per line"
         ></textarea>
-        <button id="add-button">Add Selectors</button>
-        <h2>Whitelist</h2>
+        <div class="button-container">
+            <button id="add-for-all">Add For All Sites</button>
+            <button id="add-for-current">Add For Current Site</button>
+        </div>
+        <h2>Whitelist Domains</h2>
         <div id="whitelist-tags"></div>
         <input
             type="text"

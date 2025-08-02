@@ -23,6 +23,5 @@ zip -r build.zip build/
 
 rm -rf build/
 
-printf "${GREEN}Done!\n${RESET}"
-
-set +e
+printf "${GREEN}Done!${RESET}\n"
+printf "${BLUE}Build artifact created:${RESET} $(pwd)/build.zip\n"

@@ -1,0 +1,34 @@
+---
+description: Avoid abbreviations in identifiers; use full words
+alwaysApply: true
+---
+# No Abbreviation When Coding
+
+Use full, readable names for variables, functions, parameters, and types. Avoid abbreviations and single-letter names except for very common conventions (e.g. `i`, `j` in tight loops, `e` for event).
+
+## Examples
+
+```ts
+// ❌ Abbreviated
+const usr = getCurrentUser();
+const acctBal = account.balance;
+function onBtnTap(): void {}
+function calcAmt(order: Order): number {
+  return order.items.length;
+}
+
+// ✅ Full words
+const user = getCurrentUser();
+const accountBalance = account.balance;
+function onButtonTap(): void {}
+function calculateAmount(order: Order): number {
+  return order.items.length;
+}
+```
+
+## Exceptions
+
+- **Loop indices**: `i`, `j`, `k` in short loops are fine.
+- **Domain terms**: Use the team’s established shorthand if it’s the standard (e.g. `db` for database only if the codebase already uses it consistently).
+
+When in doubt, prefer the longer, clearer name.

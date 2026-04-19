@@ -1,0 +1,17 @@
+---
+description: No redundant suffix in file names when directory already indicates functionality
+alwaysApply: true
+---
+
+# No Redundant Filename Suffix
+
+If the directory already specifies the functionality, do not repeat that same suffix in the file name.
+
+- In `repositories/` → use `xx.ts`, not `xx_repository.ts`
+- In `services/` → use `xx.ts`, not `xx_service.ts`
+- In `schema/` → use `xx.ts`, not `xx_schema.ts`
+
+**Good:** `repositories/xx.ts`, `services/xx.ts`
+**Avoid:** `repositories/xx_repository.ts`, `services/xx_service.ts`
+
+Apply the same idea for other directory names that already describe the role (e.g. `widgets/`, `pages/`, `handlers/`).

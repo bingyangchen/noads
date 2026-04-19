@@ -1,0 +1,13 @@
+---
+description: When installing dependencies, search for and use the latest stable version
+alwaysApply: false
+---
+# Latest Stable Dependencies
+
+This project uses **JavaScript/TypeScript**. When adding or updating dependencies:
+
+1. **Search for the latest stable version** on the npm registry before writing version numbers or running install commands.
+2. **Prefer the latest stable release** unless the project explicitly requires a specific version for compatibility.
+3. **Avoid placeholders** like `any`, `*`, or guessed versions; use a concrete stable version once verified.
+
+**JavaScript/TypeScript** (`package.json`): Look up the package on npm, then add a concrete stable version (for example `"package": "^1.2.3"` or install with `npm install package@1.2.3`).

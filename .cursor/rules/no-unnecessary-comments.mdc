@@ -1,0 +1,19 @@
+---
+description: Avoid unnecessary comments and doc strings
+alwaysApply: false
+---
+# Minimal Comments and Doc Strings
+
+Do not write comments or doc strings unless they are necessary.
+
+## When to Add
+
+- **Non-obvious logic**: Complex algorithms, workarounds, or non-intuitive behavior
+- **Public API surface**: Exported functions/classes that consumers rely on
+- **Safety/constraints**: Critical invariants, preconditions, or why something must not change
+
+## When to Skip
+
+- **Self-explanatory code**: Clear variable names and function names make comments redundant
+- **Trivial getters/setters**: `Returns the name` adds no value over `getName()`
+- **Obvious code**: Don't comment what the code obviously does

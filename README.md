@@ -40,8 +40,33 @@ These instructions will get you a copy of the project up and running on your loc
    - Enable "Developer mode" in the top right corner
    - Click "Load unpacked" and select the root directory of this project (noads)
 
-5. Build the extension:
+## Release the Extension
+
+Use the following steps when publishing a new version of the Chrome extension:
+
+1. Update the version number in both `package.json` and `manifest.json`.
+   Make sure the two files use the same version.
+
+2. Install dependencies if needed:
+
+   ```bash
+   npm install
+   ```
+
+3. Build the release package:
 
    ```bash
    npm run build
    ```
+
+   This command creates `build.zip`, which is the archive you should upload to the Chrome Web Store.
+
+4. Publish the new version in the Chrome Web Store:
+
+   - Open the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole)
+   - Select this extension
+   - Upload the generated `build.zip`
+   - Review the store listing, screenshots, and release notes if anything changed
+   - Submit the update for review and publication
+
+5. After the release is approved, create a git tag or GitHub release if you want to keep the repository history aligned with published versions.

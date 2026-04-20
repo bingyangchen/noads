@@ -3,163 +3,163 @@
 *,
 *:before,
 *:after {
-    box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 body {
-    width: 400px;
-    padding: 10px;
-    font-family: Arial, sans-serif;
+  width: 400px;
+  padding: 10px;
+  font-family: Arial, sans-serif;
 }
 
 textarea,
 button {
-    margin: 5px 0;
-    width: 100%;
+  margin: 5px 0;
+  width: 100%;
 }
 
 button {
-    position: relative;
-    padding: 10px;
-    border: none;
+  position: relative;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     border-radius: 8px;
-    cursor: pointer;
+  }
+  &:hover {
     &::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        border-radius: 8px;
+      background-color: $transparent-black;
     }
-    &:hover {
-        &::after {
-            background-color: $transparent-black;
-        }
-    }
+  }
 }
 
 textarea {
-    height: 100px;
-    padding: 5px;
-    border: 1px solid $light-gray;
-    border-radius: 8px;
-    resize: vertical;
+  height: 100px;
+  padding: 5px;
+  border: 1px solid $light-gray;
+  border-radius: 8px;
+  resize: vertical;
 }
 
 .button-container {
-    display: flex;
-    justify-content: space-around;
-    gap: 10px;
-    #add-for-all {
-        background-color: $green;
-        color: $white;
-    }
-    #add-for-current {
-        background-color: $blue;
-        color: $white;
-    }
+  display: flex;
+  justify-content: space-around;
+  gap: 10px;
+  #add-for-all {
+    background-color: $green;
+    color: $white;
+  }
+  #add-for-current {
+    background-color: $blue;
+    color: $white;
+  }
 }
 
 #selector-tags,
 #whitelist-tags {
-    display: block;
-    margin-top: 10px;
-    margin-bottom: 10px;
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 h1 {
-    color: $deep-gray;
+  color: $deep-gray;
 }
 
 p {
-    color: $gray;
-    margin-bottom: 3px;
+  color: $gray;
+  margin-bottom: 3px;
 }
 
 .switch-container {
-    display: flex;
-    align-items: center;
-    margin-bottom: 10px;
-    & > #status {
-        font-weight: bold;
-        margin: 0;
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  & > #status {
+    font-weight: bold;
+    margin: 0;
+  }
+  & > .switch {
+    position: relative;
+    display: inline-block;
+    width: 30px;
+    height: 17px;
+    margin-right: 8px;
+    & > input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      &:checked + .slider {
+        background-color: $green;
+      }
+      &:checked + .slider:before {
+        transform: translateX(12px);
+      }
     }
-    & > .switch {
-        position: relative;
-        display: inline-block;
-        width: 30px;
-        height: 17px;
-        margin-right: 8px;
-        & > input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-            &:checked + .slider {
-                background-color: $green;
-            }
-            &:checked + .slider:before {
-                transform: translateX(12px);
-            }
+    & > .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: $light-gray;
+      transition: 0.4s;
+      &:before {
+        content: "";
+        position: absolute;
+        height: 13px;
+        width: 13px;
+        left: 2px;
+        bottom: 2px;
+        background-color: $white;
+        transition: 0.4s;
+      }
+      &.round {
+        border-radius: 17px;
+        &:before {
+          border-radius: 50%;
         }
-        & > .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: $light-gray;
-            transition: 0.4s;
-            &:before {
-                content: "";
-                position: absolute;
-                height: 13px;
-                width: 13px;
-                left: 2px;
-                bottom: 2px;
-                background-color: $white;
-                transition: 0.4s;
-            }
-            &.round {
-                border-radius: 17px;
-                &:before {
-                    border-radius: 50%;
-                }
-            }
-        }
+      }
     }
+  }
 }
 
 .tag {
-    display: inline-block;
-    background-color: $light-gray;
-    border-radius: 4px;
-    padding: 3px 5px 3px 6px;
-    margin: 2px;
-    font-size: 12px;
+  display: inline-block;
+  background-color: $light-gray;
+  border-radius: 4px;
+  padding: 3px 5px 3px 6px;
+  margin: 2px;
+  font-size: 12px;
+  color: $deep-gray;
+  .remove-button {
+    display: inline-flex;
     color: $deep-gray;
-    .remove-button {
-        display: inline-flex;
-        color: $deep-gray;
-        cursor: pointer;
-        font-weight: bold;
-        &:hover {
-            color: $black;
-        }
+    cursor: pointer;
+    font-weight: bold;
+    &:hover {
+      color: $black;
     }
+  }
 }
 
 #whitelist-input {
-    width: 100%;
-    padding: 5px;
-    margin-bottom: 5px;
-    border: 1px solid $light-gray;
-    border-radius: 4px;
+  width: 100%;
+  padding: 5px;
+  margin-bottom: 5px;
+  border: 1px solid $light-gray;
+  border-radius: 4px;
 }
 
 #add-to-whitelist {
-    background-color: $blue;
-    color: $white;
+  background-color: $blue;
+  color: $white;
 }

@@ -26,7 +26,7 @@ These instructions will get you a copy of the project up and running on your loc
 2. Install dependencies:
 
    ```bash
-   npm install
+   npm ci
    ```
 
 3. Start the development server:
@@ -50,7 +50,7 @@ Use the following steps when publishing a new version of the Chrome extension:
 2. Install dependencies if needed:
 
    ```bash
-   npm install
+   npm ci
    ```
 
 3. Build the release package:

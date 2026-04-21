@@ -3,9 +3,20 @@ import type { NormalizedSyncStorageState, SyncStorageState } from "./types";
 
 export const syncStorageKeys = ["selectorMap", "enabled", "whitelist"] as const;
 
+function getRuntimeError(): Error | null {
+  const runtimeError = chrome.runtime.lastError;
+  return runtimeError ? new Error(runtimeError.message) : null;
+}
+
 export function getSyncStorageState(): Promise<NormalizedSyncStorageState> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.sync.get(syncStorageKeys, (result) => {
+      const runtimeError = getRuntimeError();
+      if (runtimeError !== null) {
+        reject(runtimeError);
+        return;
+      }
+
       resolve(normalizeSyncStorageState(result));
     });
   });
@@ -14,26 +25,37 @@ export function getSyncStorageState(): Promise<NormalizedSyncStorageState> {
 export function setSyncStorageState(
   partialState: Partial<SyncStorageState>,
 ): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.sync.set(partialState, () => {
+      const runtimeError = getRuntimeError();
+      if (runtimeError !== null) {
+        reject(runtimeError);
+        return;
+      }
+
       resolve();
     });
   });
 }
 
 export function getActiveTab(): Promise<chrome.tabs.Tab | null> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const runtimeError = getRuntimeError();
+      if (runtimeError !== null) {
+        reject(runtimeError);
+        return;
+      }
+
       resolve(tabs[0] ?? null);
     });
   });
 }
 
-export function reloadTab(tabId: number): Promise<void> {
+export function reloadTab(tabId: number): Promise<boolean> {
   return new Promise((resolve) => {
     chrome.tabs.reload(tabId, undefined, () => {
-      void chrome.runtime.lastError;
-      resolve();
+      resolve(getRuntimeError() === null);
     });
   });
 }

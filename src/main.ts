@@ -35,6 +35,19 @@ function parseSelectorsInput(value: string): string[] {
     .filter(Boolean);
 }
 
+function getInvalidSelectors(selectors: readonly string[]): string[] {
+  const selectorValidationRoot = document.createDocumentFragment();
+
+  return selectors.filter((selector) => {
+    try {
+      selectorValidationRoot.querySelector(selector);
+      return false;
+    } catch {
+      return true;
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const addForAllButton = document.getElementById("add-for-all") as HTMLButtonElement;
   const addForCurrentButton = document.getElementById(
@@ -58,29 +71,34 @@ document.addEventListener("DOMContentLoaded", () => {
   let whitelist: string[] = [];
 
   setStatus("Loading extension settings...");
-  void loadPopupState();
+  void runPopupAction(loadPopupState, "Failed to load extension settings.");
 
   extensionToggle.addEventListener("change", () => {
-    void handleExtensionToggleChange();
+    void runPopupAction(
+      handleExtensionToggleChange,
+      "Failed to update extension state.",
+    );
   });
 
   addForAllButton.addEventListener("click", () => {
-    void addSelectorsForAllSites();
+    void runPopupAction(addSelectorsForAllSites, "Failed to update selectors.");
   });
 
   addForCurrentButton.addEventListener("click", () => {
-    void addSelectorsForCurrentSite();
+    void runPopupAction(addSelectorsForCurrentSite, "Failed to update selectors.");
   });
 
   addToWhitelistButton.addEventListener("click", () => {
-    const normalizedDomain = normalizeDomainEntry(whitelistInput.value);
-    if (normalizedDomain === null) {
-      setStatus("Enter a valid domain or URL.");
-      return;
-    }
+    void runPopupAction(async () => {
+      const normalizedDomain = normalizeDomainEntry(whitelistInput.value);
+      if (normalizedDomain === null) {
+        setStatus("Enter a valid domain or URL.");
+        return;
+      }
 
-    addToWhitelist(normalizedDomain);
-    whitelistInput.value = "";
+      await addToWhitelist(normalizedDomain);
+      whitelistInput.value = "";
+    }, "Failed to update whitelist.");
   });
 
   whitelistInput.addEventListener("keydown", (event) => {
@@ -92,6 +110,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setStatus(message: string): void {
     status.textContent = message;
+  }
+
+  function getErrorMessage(error: unknown, fallbackMessage: string): string {
+    if (error instanceof Error && error.message.length > 0) {
+      return `${fallbackMessage} ${error.message}`;
+    }
+
+    return fallbackMessage;
+  }
+
+  async function runPopupAction(
+    action: () => Promise<void>,
+    fallbackMessage: string,
+  ): Promise<void> {
+    try {
+      await action();
+    } catch (error) {
+      console.error(fallbackMessage, error);
+      setStatus(getErrorMessage(error, fallbackMessage));
+    }
   }
 
   async function getActiveTabContext(): Promise<ActiveTabContext> {
@@ -168,36 +206,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
     selectorTagsDiv.querySelectorAll(".remove-button").forEach((button) => {
       button.addEventListener("click", (event: Event) => {
-        const target = event.currentTarget as HTMLDivElement;
-        const encodedHostname = target.getAttribute("data-domain");
-        const encodedSelector = target.getAttribute("data-selector");
+        void runPopupAction(async () => {
+          const target = event.currentTarget as HTMLDivElement;
+          const encodedHostname = target.getAttribute("data-domain");
+          const encodedSelector = target.getAttribute("data-selector");
 
-        if (encodedHostname === null || encodedSelector === null) {
-          return;
-        }
+          if (encodedHostname === null || encodedSelector === null) {
+            return;
+          }
 
-        const hostname = decodeURIComponent(encodedHostname);
-        const selectorToRemove = decodeURIComponent(encodedSelector);
+          const hostname = decodeURIComponent(encodedHostname);
+          const selectorToRemove = decodeURIComponent(encodedSelector);
+          const existingSelectors = selectorMap[hostname];
 
-        if (!selectorMap[hostname]) {
-          return;
-        }
+          if (!existingSelectors) {
+            return;
+          }
 
-        selectorMap[hostname] = selectorMap[hostname].filter(
-          (selector) => selector !== selectorToRemove,
-        );
+          const nextSelectors = existingSelectors.filter(
+            (selector) => selector !== selectorToRemove,
+          );
+          const nextSelectorMap: SelectorMap = {
+            ...selectorMap,
+            [hostname]: nextSelectors,
+          };
 
-        if (hostname !== "general" && selectorMap[hostname].length === 0) {
-          delete selectorMap[hostname];
-        }
+          if (hostname !== "general" && nextSelectors.length === 0) {
+            delete nextSelectorMap[hostname];
+          }
 
-        void saveSelectorMap("Selectors updated and saved.");
+          await saveSelectorMap(nextSelectorMap, "Selectors updated and saved.");
+        }, "Failed to update selectors.");
       });
     });
   }
 
-  async function saveSelectorMap(message: string): Promise<void> {
-    await setSyncStorageState({ selectorMap });
+  async function saveSelectorMap(
+    nextSelectorMap: SelectorMap,
+    message: string,
+  ): Promise<void> {
+    await setSyncStorageState({ selectorMap: nextSelectorMap });
+    selectorMap = nextSelectorMap;
     setStatus(message);
     await syncPopupWithActiveTab();
     await refreshCurrentTab();
@@ -210,6 +259,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function getSubmittedSelectors(): string[] | null {
+    const submittedSelectors = parseSelectorsInput(selectorsTextarea.value);
+    if (submittedSelectors.length === 0) {
+      setStatus("Enter at least one selector.");
+      return null;
+    }
+
+    const invalidSelectors = getInvalidSelectors(submittedSelectors);
+    if (invalidSelectors.length > 0) {
+      const firstInvalidSelector = invalidSelectors[0];
+      const remainingInvalidCount = invalidSelectors.length - 1;
+      const additionalInvalidSelectorsMessage =
+        remainingInvalidCount > 0 ? ` (+${remainingInvalidCount} more)` : "";
+      setStatus(
+        `Invalid CSS selector: ${firstInvalidSelector}${additionalInvalidSelectorsMessage}`,
+      );
+      return null;
+    }
+
+    return submittedSelectors;
+  }
+
   function updateWhitelistTags(): void {
     whitelistTagsDiv.innerHTML = whitelist
       .map((domain) => {
@@ -219,39 +290,45 @@ document.addEventListener("DOMContentLoaded", () => {
 
     whitelistTagsDiv.querySelectorAll(".remove-button").forEach((button) => {
       button.addEventListener("click", (event: Event) => {
-        const encodedDomain = (event.currentTarget as HTMLDivElement).getAttribute(
-          "data-domain",
-        );
-        if (encodedDomain === null) {
-          return;
-        }
+        void runPopupAction(async () => {
+          const encodedDomain = (event.currentTarget as HTMLDivElement).getAttribute(
+            "data-domain",
+          );
+          if (encodedDomain === null) {
+            return;
+          }
 
-        removeFromWhitelist(decodeURIComponent(encodedDomain));
+          await removeFromWhitelist(decodeURIComponent(encodedDomain));
+        }, "Failed to update whitelist.");
       });
     });
   }
 
-  async function saveWhitelist(message: string): Promise<void> {
-    await setSyncStorageState({ whitelist });
+  async function saveWhitelist(
+    nextWhitelist: string[],
+    message: string,
+  ): Promise<void> {
+    await setSyncStorageState({ whitelist: nextWhitelist });
+    whitelist = nextWhitelist;
     updateWhitelistTags();
     setStatus(message);
     await syncPopupWithActiveTab();
   }
 
-  function addToWhitelist(domain: string): void {
+  async function addToWhitelist(domain: string): Promise<void> {
     const alreadyWhitelisted = whitelist.some((entry) => entry === domain);
     if (alreadyWhitelisted) {
       setStatus("That domain is already whitelisted.");
       return;
     }
 
-    whitelist = [...whitelist, domain];
-    void saveWhitelist("Whitelist updated and saved.");
+    const nextWhitelist = [...whitelist, domain];
+    await saveWhitelist(nextWhitelist, "Whitelist updated and saved.");
   }
 
-  function removeFromWhitelist(domain: string): void {
-    whitelist = whitelist.filter((entry) => entry !== domain);
-    void saveWhitelist("Whitelist updated and saved.");
+  async function removeFromWhitelist(domain: string): Promise<void> {
+    const nextWhitelist = whitelist.filter((entry) => entry !== domain);
+    await saveWhitelist(nextWhitelist, "Whitelist updated and saved.");
   }
 
   async function handleExtensionToggleChange(): Promise<void> {
@@ -266,21 +343,22 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function addSelectorsForAllSites(): Promise<void> {
-    const newSelectors = parseSelectorsInput(selectorsTextarea.value.trim());
-    if (newSelectors.length === 0) {
-      setStatus("Enter at least one selector.");
+    const newSelectors = getSubmittedSelectors();
+    if (newSelectors === null) {
       return;
     }
 
-    selectorMap.general = mergeUniqueSelectors(selectorMap.general, newSelectors);
+    const nextSelectorMap: SelectorMap = {
+      ...selectorMap,
+      general: mergeUniqueSelectors(selectorMap.general, newSelectors),
+    };
+    await saveSelectorMap(nextSelectorMap, "Selectors updated and saved.");
     selectorsTextarea.value = "";
-    await saveSelectorMap("Selectors updated and saved.");
   }
 
   async function addSelectorsForCurrentSite(): Promise<void> {
-    const newSelectors = parseSelectorsInput(selectorsTextarea.value.trim());
-    if (newSelectors.length === 0) {
-      setStatus("Enter at least one selector.");
+    const newSelectors = getSubmittedSelectors();
+    if (newSelectors === null) {
       return;
     }
 
@@ -290,11 +368,14 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    selectorMap[activeTabContext.hostname] = mergeUniqueSelectors(
-      selectorMap[activeTabContext.hostname] ?? [],
-      newSelectors,
-    );
+    const nextSelectorMap: SelectorMap = {
+      ...selectorMap,
+      [activeTabContext.hostname]: mergeUniqueSelectors(
+        selectorMap[activeTabContext.hostname] ?? [],
+        newSelectors,
+      ),
+    };
+    await saveSelectorMap(nextSelectorMap, "Selectors updated and saved.");
     selectorsTextarea.value = "";
-    await saveSelectorMap("Selectors updated and saved.");
   }
 });

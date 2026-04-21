@@ -1,3 +1,4 @@
+import { getSyncStorageState } from "./browser";
 import { isUrlWhitelisted } from "./domain";
 import { getApplicableSelectors } from "./selectors";
 import {
@@ -58,13 +59,19 @@ function scheduleAdRemoval(): void {
 
 function reconcileAdBlocker(
   previouslyWhitelisted: boolean,
+  previouslyEnabled: boolean,
   reloadWhenNowWhitelisted: boolean,
 ): void {
   disconnectAdBlocker();
 
   const isCurrentlyWhitelisted = isCurrentUrlWhitelisted();
   if (isCurrentlyWhitelisted) {
-    if (reloadWhenNowWhitelisted && !previouslyWhitelisted && window.top === window) {
+    if (
+      reloadWhenNowWhitelisted &&
+      previouslyEnabled &&
+      !previouslyWhitelisted &&
+      window.top === window
+    ) {
       location.reload();
     }
     return;
@@ -90,11 +97,11 @@ function applyStorageState(syncStorageState: NormalizedSyncStorageState): void {
   extensionState.enabled = syncStorageState.enabled;
   extensionState.whitelist = syncStorageState.whitelist;
   extensionState.selectorMap = syncStorageState.selectorMap;
-  reconcileAdBlocker(false, false);
+  reconcileAdBlocker(false, false, false);
 }
 
-chrome.storage.sync.get(["selectorMap", "enabled", "whitelist"], (result) => {
-  applyStorageState(normalizeSyncStorageState(result));
+void getSyncStorageState().then((syncStorageState) => {
+  applyStorageState(syncStorageState);
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -102,6 +109,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     return;
   }
 
+  const previouslyEnabled = extensionState.enabled;
   const previouslyWhitelisted = isCurrentUrlWhitelisted();
 
   if (changes.enabled) {
@@ -114,5 +122,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     extensionState.whitelist = normalizeWhitelist(changes.whitelist.newValue);
   }
 
-  reconcileAdBlocker(previouslyWhitelisted, changes.whitelist !== undefined);
+  reconcileAdBlocker(
+    previouslyWhitelisted,
+    previouslyEnabled,
+    changes.whitelist !== undefined,
+  );
 });

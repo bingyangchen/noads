@@ -1,29 +1,34 @@
+import { setSyncStorageState, syncStorageKeys } from "./browser";
 import { createDefaultSelectorMap } from "./selectors";
-import { normalizeEnabledState, normalizeWhitelist } from "./storage";
+import {
+  normalizeEnabledState,
+  normalizeSelectorMap,
+  normalizeWhitelist,
+} from "./storage";
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.sync.get(["selectorMap", "enabled", "whitelist"], (result) => {
-    const existingMap = result.selectorMap;
-    const generalSelectors = existingMap?.general;
-    const generalSelectorsMissing = !Array.isArray(generalSelectors);
+  chrome.storage.sync.get(syncStorageKeys, (result) => {
+    const existingSelectorMap = result.selectorMap;
+    const generalSelectorsMissing = !Array.isArray(existingSelectorMap?.general);
+    const enabledMissing = typeof result.enabled !== "boolean";
     const whitelistMissing = !Array.isArray(result.whitelist);
 
-    if (generalSelectorsMissing) {
-      const defaultSelectorMap = createDefaultSelectorMap();
-      chrome.storage.sync.set({
-        selectorMap: {
-          ...(existingMap && typeof existingMap === "object" ? existingMap : {}),
-          general: defaultSelectorMap.general,
-        },
-      });
+    if (!generalSelectorsMissing && !enabledMissing && !whitelistMissing) {
+      return;
     }
 
-    if (result.enabled === undefined || typeof result.enabled !== "boolean") {
-      chrome.storage.sync.set({ enabled: normalizeEnabledState(result.enabled) });
-    }
+    const defaultSelectorMap = createDefaultSelectorMap();
+    const normalizedSelectorMap = normalizeSelectorMap(existingSelectorMap);
 
-    if (whitelistMissing) {
-      chrome.storage.sync.set({ whitelist: normalizeWhitelist(result.whitelist) });
-    }
+    void setSyncStorageState({
+      enabled: normalizeEnabledState(result.enabled),
+      whitelist: normalizeWhitelist(result.whitelist),
+      selectorMap: generalSelectorsMissing
+        ? {
+            ...normalizedSelectorMap,
+            general: defaultSelectorMap.general,
+          }
+        : normalizedSelectorMap,
+    });
   });
 });

@@ -1,11 +1,16 @@
 import {
+  getActiveTab,
+  getSyncStorageState,
+  reloadTab,
+  setSyncStorageState,
+} from "./browser";
+import {
   getHostnameFromUrl,
   isUrlWhitelisted,
   normalizeDomainEntry,
   supportsDomainBasedRules,
 } from "./domain";
 import { createDefaultSelectorMap, mergeUniqueSelectors } from "./selectors";
-import { normalizeSyncStorageState } from "./storage";
 import type { SelectorMap } from "./types";
 
 interface ActiveTabContext {
@@ -53,51 +58,18 @@ document.addEventListener("DOMContentLoaded", () => {
   let whitelist: string[] = [];
 
   setStatus("Loading extension settings...");
-  loadPopupState();
+  void loadPopupState();
 
   extensionToggle.addEventListener("change", () => {
-    const enabled = extensionToggle.checked;
-    chrome.storage.sync.set({ enabled }, () => {
-      if (!enabled) {
-        refreshCurrentTab();
-      }
-
-      syncPopupWithActiveTab();
-    });
+    void handleExtensionToggleChange();
   });
 
   addForAllButton.addEventListener("click", () => {
-    const newSelectors = parseSelectorsInput(selectorsTextarea.value.trim());
-    if (newSelectors.length === 0) {
-      setStatus("Enter at least one selector.");
-      return;
-    }
-
-    selectorMap.general = mergeUniqueSelectors(selectorMap.general, newSelectors);
-    selectorsTextarea.value = "";
-    saveSelectorMap("Selectors updated and saved.");
+    void addSelectorsForAllSites();
   });
 
   addForCurrentButton.addEventListener("click", () => {
-    const newSelectors = parseSelectorsInput(selectorsTextarea.value.trim());
-    if (newSelectors.length === 0) {
-      setStatus("Enter at least one selector.");
-      return;
-    }
-
-    withActiveTabContext((activeTabContext) => {
-      if (!activeTabContext.supportsDomainRules || activeTabContext.hostname === null) {
-        setStatus("Current-site selectors are only available on regular web pages.");
-        return;
-      }
-
-      selectorMap[activeTabContext.hostname] = mergeUniqueSelectors(
-        selectorMap[activeTabContext.hostname] ?? [],
-        newSelectors,
-      );
-      selectorsTextarea.value = "";
-      saveSelectorMap("Selectors updated and saved.");
-    });
+    void addSelectorsForCurrentSite();
   });
 
   addToWhitelistButton.addEventListener("click", () => {
@@ -122,43 +94,31 @@ document.addEventListener("DOMContentLoaded", () => {
     status.textContent = message;
   }
 
-  function withActiveTabContext(
-    callback: (activeTabContext: ActiveTabContext) => void,
-  ): void {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const activeTab = tabs[0];
-      const tabUrl = activeTab?.url ?? null;
-
-      callback({
-        url: tabUrl,
-        hostname: tabUrl === null ? null : getHostnameFromUrl(tabUrl),
-        supportsDomainRules: tabUrl === null ? false : supportsDomainBasedRules(tabUrl),
-      });
-    });
+  async function getActiveTabContext(): Promise<ActiveTabContext> {
+    const activeTab = await getActiveTab();
+    const tabUrl = activeTab?.url ?? null;
+    return {
+      url: tabUrl,
+      hostname: tabUrl === null ? null : getHostnameFromUrl(tabUrl),
+      supportsDomainRules: tabUrl === null ? false : supportsDomainBasedRules(tabUrl),
+    };
   }
 
-  function loadPopupState(): void {
-    chrome.storage.sync.get(["selectorMap", "enabled", "whitelist"], (result) => {
-      const syncStorageState = normalizeSyncStorageState(result);
-      selectorMap = syncStorageState.selectorMap;
-      whitelist = syncStorageState.whitelist;
-      extensionToggle.checked = syncStorageState.enabled;
+  async function loadPopupState(): Promise<void> {
+    const syncStorageState = await getSyncStorageState();
+    selectorMap = syncStorageState.selectorMap;
+    whitelist = syncStorageState.whitelist;
+    extensionToggle.checked = syncStorageState.enabled;
 
-      if (result.selectorMap === undefined) {
-        chrome.storage.sync.set({ selectorMap });
-      }
-
-      updateWhitelistTags();
-      syncPopupWithActiveTab();
-    });
+    updateWhitelistTags();
+    await syncPopupWithActiveTab();
   }
 
-  function syncPopupWithActiveTab(): void {
-    withActiveTabContext((activeTabContext) => {
-      updateSelectorTags(activeTabContext.hostname);
-      updateStatus(activeTabContext);
-      addForCurrentButton.disabled = !activeTabContext.supportsDomainRules;
-    });
+  async function syncPopupWithActiveTab(): Promise<void> {
+    const activeTabContext = await getActiveTabContext();
+    updateSelectorTags(activeTabContext.hostname);
+    updateStatus(activeTabContext);
+    addForCurrentButton.disabled = !activeTabContext.supportsDomainRules;
   }
 
   function updateStatus(activeTabContext: ActiveTabContext): void {
@@ -231,28 +191,23 @@ document.addEventListener("DOMContentLoaded", () => {
           delete selectorMap[hostname];
         }
 
-        saveSelectorMap("Selectors updated and saved.");
+        void saveSelectorMap("Selectors updated and saved.");
       });
     });
   }
 
-  function saveSelectorMap(message: string): void {
-    chrome.storage.sync.set({ selectorMap }, () => {
-      setStatus(message);
-      syncPopupWithActiveTab();
-      refreshCurrentTab();
-    });
+  async function saveSelectorMap(message: string): Promise<void> {
+    await setSyncStorageState({ selectorMap });
+    setStatus(message);
+    await syncPopupWithActiveTab();
+    await refreshCurrentTab();
   }
 
-  function refreshCurrentTab(): void {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const activeTabId = tabs[0]?.id;
-      if (activeTabId !== undefined) {
-        chrome.tabs.reload(activeTabId, undefined, () => {
-          void chrome.runtime.lastError;
-        });
-      }
-    });
+  async function refreshCurrentTab(): Promise<void> {
+    const activeTab = await getActiveTab();
+    if (activeTab?.id !== undefined) {
+      await reloadTab(activeTab.id);
+    }
   }
 
   function updateWhitelistTags(): void {
@@ -276,12 +231,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function saveWhitelist(message: string): void {
-    chrome.storage.sync.set({ whitelist }, () => {
-      updateWhitelistTags();
-      setStatus(message);
-      syncPopupWithActiveTab();
-    });
+  async function saveWhitelist(message: string): Promise<void> {
+    await setSyncStorageState({ whitelist });
+    updateWhitelistTags();
+    setStatus(message);
+    await syncPopupWithActiveTab();
   }
 
   function addToWhitelist(domain: string): void {
@@ -292,11 +246,55 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     whitelist = [...whitelist, domain];
-    saveWhitelist("Whitelist updated and saved.");
+    void saveWhitelist("Whitelist updated and saved.");
   }
 
   function removeFromWhitelist(domain: string): void {
     whitelist = whitelist.filter((entry) => entry !== domain);
-    saveWhitelist("Whitelist updated and saved.");
+    void saveWhitelist("Whitelist updated and saved.");
+  }
+
+  async function handleExtensionToggleChange(): Promise<void> {
+    const enabled = extensionToggle.checked;
+    await setSyncStorageState({ enabled });
+
+    if (!enabled) {
+      await refreshCurrentTab();
+    }
+
+    await syncPopupWithActiveTab();
+  }
+
+  async function addSelectorsForAllSites(): Promise<void> {
+    const newSelectors = parseSelectorsInput(selectorsTextarea.value.trim());
+    if (newSelectors.length === 0) {
+      setStatus("Enter at least one selector.");
+      return;
+    }
+
+    selectorMap.general = mergeUniqueSelectors(selectorMap.general, newSelectors);
+    selectorsTextarea.value = "";
+    await saveSelectorMap("Selectors updated and saved.");
+  }
+
+  async function addSelectorsForCurrentSite(): Promise<void> {
+    const newSelectors = parseSelectorsInput(selectorsTextarea.value.trim());
+    if (newSelectors.length === 0) {
+      setStatus("Enter at least one selector.");
+      return;
+    }
+
+    const activeTabContext = await getActiveTabContext();
+    if (!activeTabContext.supportsDomainRules || activeTabContext.hostname === null) {
+      setStatus("Current-site selectors are only available on regular web pages.");
+      return;
+    }
+
+    selectorMap[activeTabContext.hostname] = mergeUniqueSelectors(
+      selectorMap[activeTabContext.hostname] ?? [],
+      newSelectors,
+    );
+    selectorsTextarea.value = "";
+    await saveSelectorMap("Selectors updated and saved.");
   }
 });

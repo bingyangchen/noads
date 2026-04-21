@@ -1,4 +1,5 @@
 const DOMAIN_BASED_PROTOCOLS = new Set(["http:", "https:"]);
+const CONTENT_RULE_PROTOCOLS = new Set(["file:", "http:", "https:"]);
 
 function getUrl(url: string): URL | null {
   try {
@@ -28,6 +29,15 @@ export function supportsDomainBasedRules(url: string): boolean {
   return (
     hostname.length > 0 && DOMAIN_BASED_PROTOCOLS.has(parsedUrl.protocol.toLowerCase())
   );
+}
+
+export function supportsPageContentRules(url: string): boolean {
+  const parsedUrl = getUrl(url);
+  if (parsedUrl === null) {
+    return false;
+  }
+
+  return CONTENT_RULE_PROTOCOLS.has(parsedUrl.protocol.toLowerCase());
 }
 
 export function normalizeDomainEntry(value: string): string | null {

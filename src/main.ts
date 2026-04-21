@@ -9,6 +9,7 @@ import {
   isUrlWhitelisted,
   normalizeDomainEntry,
   supportsDomainBasedRules,
+  supportsPageContentRules,
 } from "./domain";
 import { getInvalidCssSelectors } from "./selectorValidation";
 import { createDefaultSelectorMap, mergeUniqueSelectors } from "./selectors";
@@ -248,17 +249,24 @@ document.addEventListener("DOMContentLoaded", () => {
   async function saveSelectorMap(
     nextSelectorMap: SelectorMap,
     message: string,
+    refreshCurrentTab = false,
   ): Promise<void> {
     await setSyncStorageState({ selectorMap: nextSelectorMap });
     selectorMap = nextSelectorMap;
     setStatus(message);
     await syncPopupWithActiveTab();
-    await refreshCurrentTab();
+    if (refreshCurrentTab) {
+      await refreshCurrentTabIfNeeded();
+    }
   }
 
-  async function refreshCurrentTab(): Promise<void> {
+  async function refreshCurrentTabIfNeeded(): Promise<void> {
     const activeTab = await getActiveTab();
-    if (activeTab?.id !== undefined) {
+    if (
+      activeTab?.id !== undefined &&
+      activeTab.url !== undefined &&
+      supportsPageContentRules(activeTab.url)
+    ) {
       await reloadTab(activeTab.id);
     }
   }
@@ -343,7 +351,7 @@ document.addEventListener("DOMContentLoaded", () => {
       delete nextSelectorMap[hostname];
     }
 
-    await saveSelectorMap(nextSelectorMap, "Selectors updated and saved.");
+    await saveSelectorMap(nextSelectorMap, "Selectors updated and saved.", true);
   }
 
   async function removeDomainFromWhitelist(
@@ -389,7 +397,7 @@ document.addEventListener("DOMContentLoaded", () => {
     await setSyncStorageState({ enabled });
 
     if (!enabled) {
-      await refreshCurrentTab();
+      await refreshCurrentTabIfNeeded();
     }
 
     await syncPopupWithActiveTab();

@@ -14,6 +14,7 @@ const extensionState: NormalizedSyncStorageState = normalizeSyncStorageState({})
 
 let mutationObserver: MutationObserver | null = null;
 let pendingAdRemovalFrame: number | null = null;
+let resolvedApplicableSelectors: string[] = [];
 const isValidCssSelector = createCachedSelectorValidator((selector, error) => {
   console.warn("Ignoring invalid CSS selector.", selector, error);
 });
@@ -37,16 +38,26 @@ function disconnectAdBlocker(): void {
   }
 }
 
-function removeAds(): void {
-  if (!extensionState.enabled || isCurrentUrlWhitelisted()) return;
-  const applicableSelectors = getApplicableSelectors(
+function updateResolvedApplicableSelectors(): void {
+  if (!extensionState.enabled || isCurrentUrlWhitelisted()) {
+    resolvedApplicableSelectors = [];
+    return;
+  }
+
+  resolvedApplicableSelectors = getApplicableSelectors(
     extensionState.selectorMap,
     window.location.hostname,
   ).filter(isValidCssSelector);
+}
 
-  applicableSelectors.forEach((selector) => {
-    document.querySelectorAll(selector).forEach((element) => element.remove());
-  });
+function removeAds(): void {
+  if (resolvedApplicableSelectors.length === 0) {
+    return;
+  }
+
+  document
+    .querySelectorAll(resolvedApplicableSelectors.join(","))
+    .forEach((element) => element.remove());
 }
 
 function scheduleAdRemoval(): void {
@@ -71,6 +82,7 @@ function reconcileAdBlocker(options: ReconcileAdBlockerOptions): void {
 
   const isCurrentlyWhitelisted = isCurrentUrlWhitelisted();
   if (isCurrentlyWhitelisted) {
+    resolvedApplicableSelectors = [];
     if (
       options.whitelistChanged &&
       options.previouslyEnabled &&
@@ -83,12 +95,20 @@ function reconcileAdBlocker(options: ReconcileAdBlockerOptions): void {
   }
 
   if (extensionState.enabled) {
+    updateResolvedApplicableSelectors();
     initAdBlocker();
+    return;
   }
+
+  resolvedApplicableSelectors = [];
 }
 
 function initAdBlocker(): void {
   removeAds();
+  if (resolvedApplicableSelectors.length === 0) {
+    return;
+  }
+
   mutationObserver = new MutationObserver((mutations) => {
     if (
       mutations.some(

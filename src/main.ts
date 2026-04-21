@@ -5,7 +5,8 @@ import {
   supportsDomainBasedRules,
 } from "./domain";
 import { createDefaultSelectorMap, mergeUniqueSelectors } from "./selectors";
-import type { SelectorMap, SyncStorageState } from "./types";
+import { normalizeSyncStorageState } from "./storage";
+import type { SelectorMap } from "./types";
 
 interface ActiveTabContext {
   url: string | null;
@@ -138,12 +139,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function loadPopupState(): void {
     chrome.storage.sync.get(["selectorMap", "enabled", "whitelist"], (result) => {
-      const syncStorageState = result as SyncStorageState;
-      selectorMap = syncStorageState.selectorMap ?? createDefaultSelectorMap();
-      whitelist = syncStorageState.whitelist ?? [];
-      extensionToggle.checked = syncStorageState.enabled !== false;
+      const syncStorageState = normalizeSyncStorageState(result);
+      selectorMap = syncStorageState.selectorMap;
+      whitelist = syncStorageState.whitelist;
+      extensionToggle.checked = syncStorageState.enabled;
 
-      if (syncStorageState.selectorMap === undefined) {
+      if (result.selectorMap === undefined) {
         chrome.storage.sync.set({ selectorMap });
       }
 

@@ -47,12 +47,22 @@ export function getApplicableSelectors(
   selectorMap: SelectorMap,
   hostname: string,
 ): string[] {
-  return [...new Set([...selectorMap.general, ...(selectorMap[hostname] ?? [])])];
+  const generalSelectors = Array.isArray(selectorMap.general)
+    ? selectorMap.general
+    : [];
+  const hostnameSelectors = selectorMap[hostname];
+
+  return [
+    ...new Set([
+      ...generalSelectors,
+      ...(Array.isArray(hostnameSelectors) ? hostnameSelectors : []),
+    ]),
+  ];
 }
 
 export function mergeUniqueSelectors(
-  existingSelectors: string[],
-  newSelectors: string[],
+  existingSelectors: readonly string[],
+  newSelectors: readonly string[],
 ): string[] {
   return [...new Set([...existingSelectors, ...newSelectors])];
 }

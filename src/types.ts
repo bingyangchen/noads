@@ -8,3 +8,9 @@ export interface SyncStorageState {
   whitelist?: string[];
   selectorMap?: SelectorMap;
 }
+
+export interface NormalizedSyncStorageState {
+  enabled: boolean;
+  whitelist: string[];
+  selectorMap: SelectorMap;
+}

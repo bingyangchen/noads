@@ -1,12 +1,14 @@
 import { isUrlWhitelisted } from "./domain";
 import { getApplicableSelectors } from "./selectors";
-import type { SelectorMap, SyncStorageState } from "./types";
+import {
+  normalizeEnabledState,
+  normalizeSelectorMap,
+  normalizeSyncStorageState,
+  normalizeWhitelist,
+} from "./storage";
+import type { NormalizedSyncStorageState } from "./types";
 
-let isEnabled = true;
-let whitelist: string[] = [];
-let selectorMap: SelectorMap = {
-  general: [],
-};
+const extensionState: NormalizedSyncStorageState = normalizeSyncStorageState({});
 
 let mutationObserver: MutationObserver | null = null;
 let pendingAdRemovalFrame: number | null = null;
@@ -18,6 +20,10 @@ function cancelPendingAdRemoval(): void {
   }
 }
 
+function isCurrentUrlWhitelisted(): boolean {
+  return isUrlWhitelisted(window.location.href, extensionState.whitelist);
+}
+
 function disconnectAdBlocker(): void {
   cancelPendingAdRemoval();
   if (mutationObserver) {
@@ -27,9 +33,9 @@ function disconnectAdBlocker(): void {
 }
 
 function removeAds(): void {
-  if (!isEnabled || isUrlWhitelisted(window.location.href, whitelist)) return;
+  if (!extensionState.enabled || isCurrentUrlWhitelisted()) return;
   const applicableSelectors = getApplicableSelectors(
-    selectorMap,
+    extensionState.selectorMap,
     window.location.hostname,
   );
   applicableSelectors.forEach((selector) => {
@@ -50,6 +56,25 @@ function scheduleAdRemoval(): void {
   });
 }
 
+function reconcileAdBlocker(
+  previouslyWhitelisted: boolean,
+  reloadWhenNowWhitelisted: boolean,
+): void {
+  disconnectAdBlocker();
+
+  const isCurrentlyWhitelisted = isCurrentUrlWhitelisted();
+  if (isCurrentlyWhitelisted) {
+    if (reloadWhenNowWhitelisted && !previouslyWhitelisted && window.top === window) {
+      location.reload();
+    }
+    return;
+  }
+
+  if (extensionState.enabled) {
+    initAdBlocker();
+  }
+}
+
 function initAdBlocker(): void {
   removeAds();
   mutationObserver = new MutationObserver((mutations) => {
@@ -61,47 +86,33 @@ function initAdBlocker(): void {
   mutationObserver.observe(observerTarget, { childList: true, subtree: true });
 }
 
-function applySyncStorageResult(result: SyncStorageState): void {
-  isEnabled = result.enabled !== false;
-  whitelist = result.whitelist ?? [];
-  selectorMap = result.selectorMap ?? { general: [] };
-  syncAdBlockerWithCurrentState();
-}
-
-function syncAdBlockerWithCurrentState(): void {
-  disconnectAdBlocker();
-  if (!isEnabled || isUrlWhitelisted(window.location.href, whitelist)) return;
-  initAdBlocker();
-}
-
-function applyWhitelistUpdate(updatedWhitelist: string[]): void {
-  whitelist = updatedWhitelist;
-  disconnectAdBlocker();
-  if (isUrlWhitelisted(window.location.href, whitelist)) {
-    if (window.top === window) {
-      location.reload();
-    }
-    return;
-  } else if (isEnabled) {
-    initAdBlocker();
-  }
+function applyStorageState(syncStorageState: NormalizedSyncStorageState): void {
+  extensionState.enabled = syncStorageState.enabled;
+  extensionState.whitelist = syncStorageState.whitelist;
+  extensionState.selectorMap = syncStorageState.selectorMap;
+  reconcileAdBlocker(false, false);
 }
 
 chrome.storage.sync.get(["selectorMap", "enabled", "whitelist"], (result) => {
-  applySyncStorageResult(result);
+  applyStorageState(normalizeSyncStorageState(result));
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "sync") return;
-  if (changes.enabled) {
-    isEnabled = changes.enabled.newValue !== false;
-  }
-  if (changes.selectorMap) {
-    selectorMap = changes.selectorMap.newValue ?? { general: [] };
-  }
-  if (changes.whitelist) {
-    applyWhitelistUpdate(changes.whitelist.newValue ?? []);
+  if (areaName !== "sync") {
     return;
   }
-  syncAdBlockerWithCurrentState();
+
+  const previouslyWhitelisted = isCurrentUrlWhitelisted();
+
+  if (changes.enabled) {
+    extensionState.enabled = normalizeEnabledState(changes.enabled.newValue);
+  }
+  if (changes.selectorMap) {
+    extensionState.selectorMap = normalizeSelectorMap(changes.selectorMap.newValue);
+  }
+  if (changes.whitelist) {
+    extensionState.whitelist = normalizeWhitelist(changes.whitelist.newValue);
+  }
+
+  reconcileAdBlocker(previouslyWhitelisted, changes.whitelist !== undefined);
 });

@@ -1,5 +1,6 @@
 import { getSyncStorageState } from "./browser";
 import { isUrlWhitelisted } from "./domain";
+import { createCachedSelectorValidator } from "./selectorValidation";
 import { getApplicableSelectors } from "./selectors";
 import {
   normalizeEnabledState,
@@ -10,12 +11,12 @@ import {
 import type { NormalizedSyncStorageState } from "./types";
 
 const extensionState: NormalizedSyncStorageState = normalizeSyncStorageState({});
-const selectorValidationRoot = document.createDocumentFragment();
 
 let mutationObserver: MutationObserver | null = null;
 let pendingAdRemovalFrame: number | null = null;
-const validSelectors = new Set<string>();
-const invalidSelectors = new Set<string>();
+const isValidCssSelector = createCachedSelectorValidator((selector, error) => {
+  console.warn("Ignoring invalid CSS selector.", selector, error);
+});
 
 function cancelPendingAdRemoval(): void {
   if (pendingAdRemovalFrame !== null) {
@@ -33,26 +34,6 @@ function disconnectAdBlocker(): void {
   if (mutationObserver) {
     mutationObserver.disconnect();
     mutationObserver = null;
-  }
-}
-
-function isValidCssSelector(selector: string): boolean {
-  if (validSelectors.has(selector)) {
-    return true;
-  }
-
-  if (invalidSelectors.has(selector)) {
-    return false;
-  }
-
-  try {
-    selectorValidationRoot.querySelector(selector);
-    validSelectors.add(selector);
-    return true;
-  } catch (error) {
-    invalidSelectors.add(selector);
-    console.warn("Ignoring invalid CSS selector.", selector, error);
-    return false;
   }
 }
 
@@ -79,19 +60,21 @@ function scheduleAdRemoval(): void {
   });
 }
 
-function reconcileAdBlocker(
-  previouslyWhitelisted: boolean,
-  previouslyEnabled: boolean,
-  reloadWhenNowWhitelisted: boolean,
-): void {
+interface ReconcileAdBlockerOptions {
+  previouslyWhitelisted: boolean;
+  previouslyEnabled: boolean;
+  whitelistChanged: boolean;
+}
+
+function reconcileAdBlocker(options: ReconcileAdBlockerOptions): void {
   disconnectAdBlocker();
 
   const isCurrentlyWhitelisted = isCurrentUrlWhitelisted();
   if (isCurrentlyWhitelisted) {
     if (
-      reloadWhenNowWhitelisted &&
-      previouslyEnabled &&
-      !previouslyWhitelisted &&
+      options.whitelistChanged &&
+      options.previouslyEnabled &&
+      !options.previouslyWhitelisted &&
       window.top === window
     ) {
       location.reload();
@@ -107,24 +90,41 @@ function reconcileAdBlocker(
 function initAdBlocker(): void {
   removeAds();
   mutationObserver = new MutationObserver((mutations) => {
-    if (mutations.some((mutation) => mutation.type === "childList")) {
+    if (
+      mutations.some(
+        (mutation) => mutation.type === "childList" || mutation.type === "attributes",
+      )
+    ) {
       scheduleAdRemoval();
     }
   });
   const observerTarget = document.body ?? document.documentElement;
-  mutationObserver.observe(observerTarget, { childList: true, subtree: true });
+  mutationObserver.observe(observerTarget, {
+    attributes: true,
+    attributeFilter: ["class", "hidden", "id", "src", "style"],
+    childList: true,
+    subtree: true,
+  });
 }
 
 function applyStorageState(syncStorageState: NormalizedSyncStorageState): void {
   extensionState.enabled = syncStorageState.enabled;
   extensionState.whitelist = syncStorageState.whitelist;
   extensionState.selectorMap = syncStorageState.selectorMap;
-  reconcileAdBlocker(false, false, false);
+  reconcileAdBlocker({
+    previouslyEnabled: false,
+    previouslyWhitelisted: false,
+    whitelistChanged: false,
+  });
 }
 
-void getSyncStorageState().then((syncStorageState) => {
-  applyStorageState(syncStorageState);
-});
+void getSyncStorageState()
+  .then((syncStorageState) => {
+    applyStorageState(syncStorageState);
+  })
+  .catch((error: unknown) => {
+    console.error("Failed to load sync storage state.", error);
+  });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "sync") {
@@ -144,9 +144,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     extensionState.whitelist = normalizeWhitelist(changes.whitelist.newValue);
   }
 
-  reconcileAdBlocker(
+  reconcileAdBlocker({
     previouslyWhitelisted,
     previouslyEnabled,
-    changes.whitelist !== undefined,
-  );
+    whitelistChanged: changes.whitelist !== undefined,
+  });
 });

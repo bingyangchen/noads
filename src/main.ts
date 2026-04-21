@@ -10,6 +10,7 @@ import {
   normalizeDomainEntry,
   supportsDomainBasedRules,
 } from "./domain";
+import { getInvalidCssSelectors } from "./selectorValidation";
 import { createDefaultSelectorMap, mergeUniqueSelectors } from "./selectors";
 import type { SelectorMap } from "./types";
 
@@ -35,19 +36,6 @@ function parseSelectorsInput(value: string): string[] {
     .filter(Boolean);
 }
 
-function getInvalidSelectors(selectors: readonly string[]): string[] {
-  const selectorValidationRoot = document.createDocumentFragment();
-
-  return selectors.filter((selector) => {
-    try {
-      selectorValidationRoot.querySelector(selector);
-      return false;
-    } catch {
-      return true;
-    }
-  });
-}
-
 document.addEventListener("DOMContentLoaded", () => {
   const addForAllButton = document.getElementById("add-for-all") as HTMLButtonElement;
   const addForCurrentButton = document.getElementById(
@@ -69,9 +57,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let selectorMap: SelectorMap = createDefaultSelectorMap();
   let whitelist: string[] = [];
+  let popupReady = false;
 
+  setControlsDisabled(true);
   setStatus("Loading extension settings...");
-  void runPopupAction(loadPopupState, "Failed to load extension settings.");
+  void runPopupAction(loadPopupState, "Failed to load extension settings.", false);
 
   extensionToggle.addEventListener("change", () => {
     void runPopupAction(
@@ -108,8 +98,39 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  selectorTagsDiv.addEventListener("click", (event) => {
+    const removeButton = getRemoveButtonFromEvent(event, selectorTagsDiv);
+    if (removeButton === null) {
+      return;
+    }
+
+    void runPopupAction(async () => {
+      await removeSelectorFromStorage(removeButton);
+    }, "Failed to update selectors.");
+  });
+
+  whitelistTagsDiv.addEventListener("click", (event) => {
+    const removeButton = getRemoveButtonFromEvent(event, whitelistTagsDiv);
+    if (removeButton === null) {
+      return;
+    }
+
+    void runPopupAction(async () => {
+      await removeDomainFromWhitelist(removeButton);
+    }, "Failed to update whitelist.");
+  });
+
   function setStatus(message: string): void {
     status.textContent = message;
+  }
+
+  function setControlsDisabled(disabled: boolean): void {
+    addForAllButton.disabled = disabled;
+    addForCurrentButton.disabled = disabled;
+    selectorsTextarea.disabled = disabled;
+    extensionToggle.disabled = disabled;
+    whitelistInput.disabled = disabled;
+    addToWhitelistButton.disabled = disabled;
   }
 
   function getErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -123,13 +144,30 @@ document.addEventListener("DOMContentLoaded", () => {
   async function runPopupAction(
     action: () => Promise<void>,
     fallbackMessage: string,
+    requiresReady = true,
   ): Promise<void> {
     try {
+      if (requiresReady) {
+        await ensurePopupReady();
+      }
+
       await action();
     } catch (error) {
       console.error(fallbackMessage, error);
+      if (!popupReady) {
+        setControlsDisabled(false);
+      }
       setStatus(getErrorMessage(error, fallbackMessage));
     }
+  }
+
+  async function ensurePopupReady(): Promise<void> {
+    if (popupReady) {
+      return;
+    }
+
+    setStatus("Loading extension settings...");
+    await loadPopupState();
   }
 
   async function getActiveTabContext(): Promise<ActiveTabContext> {
@@ -147,6 +185,8 @@ document.addEventListener("DOMContentLoaded", () => {
     selectorMap = syncStorageState.selectorMap;
     whitelist = syncStorageState.whitelist;
     extensionToggle.checked = syncStorageState.enabled;
+    popupReady = true;
+    setControlsDisabled(false);
 
     updateWhitelistTags();
     await syncPopupWithActiveTab();
@@ -203,42 +243,6 @@ document.addEventListener("DOMContentLoaded", () => {
           .join("");
       })
       .join("");
-
-    selectorTagsDiv.querySelectorAll(".remove-button").forEach((button) => {
-      button.addEventListener("click", (event: Event) => {
-        void runPopupAction(async () => {
-          const target = event.currentTarget as HTMLDivElement;
-          const encodedHostname = target.getAttribute("data-domain");
-          const encodedSelector = target.getAttribute("data-selector");
-
-          if (encodedHostname === null || encodedSelector === null) {
-            return;
-          }
-
-          const hostname = decodeURIComponent(encodedHostname);
-          const selectorToRemove = decodeURIComponent(encodedSelector);
-          const existingSelectors = selectorMap[hostname];
-
-          if (!existingSelectors) {
-            return;
-          }
-
-          const nextSelectors = existingSelectors.filter(
-            (selector) => selector !== selectorToRemove,
-          );
-          const nextSelectorMap: SelectorMap = {
-            ...selectorMap,
-            [hostname]: nextSelectors,
-          };
-
-          if (hostname !== "general" && nextSelectors.length === 0) {
-            delete nextSelectorMap[hostname];
-          }
-
-          await saveSelectorMap(nextSelectorMap, "Selectors updated and saved.");
-        }, "Failed to update selectors.");
-      });
-    });
   }
 
   async function saveSelectorMap(
@@ -266,7 +270,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return null;
     }
 
-    const invalidSelectors = getInvalidSelectors(submittedSelectors);
+    const invalidSelectors = getInvalidCssSelectors(submittedSelectors);
     if (invalidSelectors.length > 0) {
       const firstInvalidSelector = invalidSelectors[0];
       const remainingInvalidCount = invalidSelectors.length - 1;
@@ -287,21 +291,70 @@ document.addEventListener("DOMContentLoaded", () => {
         return `<span class="tag">${escapeHtml(domain)} <div class="remove-button" data-domain="${encodeURIComponent(domain)}">×</div></span>`;
       })
       .join("");
+  }
 
-    whitelistTagsDiv.querySelectorAll(".remove-button").forEach((button) => {
-      button.addEventListener("click", (event: Event) => {
-        void runPopupAction(async () => {
-          const encodedDomain = (event.currentTarget as HTMLDivElement).getAttribute(
-            "data-domain",
-          );
-          if (encodedDomain === null) {
-            return;
-          }
+  function getRemoveButtonFromEvent(
+    event: Event,
+    container: HTMLElement,
+  ): HTMLDivElement | null {
+    const eventTarget = event.target;
+    if (!(eventTarget instanceof Element)) {
+      return null;
+    }
 
-          await removeFromWhitelist(decodeURIComponent(encodedDomain));
-        }, "Failed to update whitelist.");
-      });
-    });
+    const removeButton = eventTarget.closest(".remove-button");
+    if (
+      !(removeButton instanceof HTMLDivElement) ||
+      !container.contains(removeButton)
+    ) {
+      return null;
+    }
+
+    return removeButton;
+  }
+
+  async function removeSelectorFromStorage(
+    removeButton: HTMLDivElement,
+  ): Promise<void> {
+    const encodedHostname = removeButton.getAttribute("data-domain");
+    const encodedSelector = removeButton.getAttribute("data-selector");
+
+    if (encodedHostname === null || encodedSelector === null) {
+      return;
+    }
+
+    const hostname = decodeURIComponent(encodedHostname);
+    const selectorToRemove = decodeURIComponent(encodedSelector);
+    const existingSelectors = selectorMap[hostname];
+
+    if (!existingSelectors) {
+      return;
+    }
+
+    const nextSelectors = existingSelectors.filter(
+      (selector) => selector !== selectorToRemove,
+    );
+    const nextSelectorMap: SelectorMap = {
+      ...selectorMap,
+      [hostname]: nextSelectors,
+    };
+
+    if (hostname !== "general" && nextSelectors.length === 0) {
+      delete nextSelectorMap[hostname];
+    }
+
+    await saveSelectorMap(nextSelectorMap, "Selectors updated and saved.");
+  }
+
+  async function removeDomainFromWhitelist(
+    removeButton: HTMLDivElement,
+  ): Promise<void> {
+    const encodedDomain = removeButton.getAttribute("data-domain");
+    if (encodedDomain === null) {
+      return;
+    }
+
+    await removeFromWhitelist(decodeURIComponent(encodedDomain));
   }
 
   async function saveWhitelist(

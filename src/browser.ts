@@ -3,7 +3,7 @@ import type { NormalizedSyncStorageState, SyncStorageState } from "./types";
 
 export const syncStorageKeys = ["selectorMap", "enabled", "whitelist"] as const;
 
-function getRuntimeError(): Error | null {
+export function getRuntimeError(): Error | null {
   const runtimeError = chrome.runtime.lastError;
   return runtimeError ? new Error(runtimeError.message) : null;
 }
@@ -52,10 +52,16 @@ export function getActiveTab(): Promise<chrome.tabs.Tab | null> {
   });
 }
 
-export function reloadTab(tabId: number): Promise<boolean> {
-  return new Promise((resolve) => {
+export function reloadTab(tabId: number): Promise<void> {
+  return new Promise((resolve, reject) => {
     chrome.tabs.reload(tabId, undefined, () => {
-      resolve(getRuntimeError() === null);
+      const runtimeError = getRuntimeError();
+      if (runtimeError !== null) {
+        reject(runtimeError);
+        return;
+      }
+
+      resolve();
     });
   });
 }

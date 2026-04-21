@@ -5,12 +5,14 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "build:ts": "node scripts/build-ts.mjs",
     "copy:popup-html": "node scripts/sync-popup-html.mjs",
-    "watch:tsc": "tsc -w",
+    "typecheck": "tsc --noEmit",
+    "watch:ts": "node scripts/build-ts.mjs --watch",
     "scss": "sass --style=compressed --no-source-map src/styles.scss:dist/styles.css",
     "watch:scss": "sass --style=compressed --no-source-map --watch src/styles.scss:dist/styles.css",
     "watch:popup-html": "node scripts/sync-popup-html.mjs --watch",
-    "dev": "concurrently \"npm run watch:tsc\" \"npm run watch:scss\" \"npm run watch:popup-html\""
+    "dev": "concurrently \"npm run watch:ts\" \"npm run watch:scss\" \"npm run watch:popup-html\""
   },
   "keywords": [
     "chrome-extension",
@@ -22,6 +24,7 @@
     "@types/chrome": "^0.0.237",
     "archiver": "^7.0.1",
     "concurrently": "^8.2.0",
+    "esbuild": "^0.28.0",
     "sass": "^1.79.4",
     "typescript": "^5.0.4"
   }

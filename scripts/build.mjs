@@ -56,7 +56,8 @@ function createBuildArchive() {
 }
 
 try {
-  await runCommand(npmExecutableName, ["exec", "--", "tsc"]);
+  await runCommand(npmExecutableName, ["run", "typecheck"]);
+  await runCommand(npmExecutableName, ["run", "build:ts"]);
   await runCommand(npmExecutableName, ["run", "scss"]);
   await runCommand(npmExecutableName, ["run", "copy:popup-html"]);
 

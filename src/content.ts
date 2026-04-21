@@ -1,55 +1,107 @@
-chrome.runtime.sendMessage({ action: "contentScriptReady" });
+import { isUrlWhitelisted } from "./domain";
+import { getApplicableSelectors } from "./selectors";
+import type { SelectorMap, SyncStorageState } from "./types";
 
 let isEnabled = true;
 let whitelist: string[] = [];
-let selectorMap: { general: string[]; [domain: string]: string[] } = {
+let selectorMap: SelectorMap = {
   general: [],
 };
 
-function isWhitelisted(url: string): boolean {
-  const hostname = new URL(url).hostname;
-  return whitelist.some((domain) => hostname.includes(domain));
+let mutationObserver: MutationObserver | null = null;
+let pendingAdRemovalFrame: number | null = null;
+
+function cancelPendingAdRemoval(): void {
+  if (pendingAdRemovalFrame !== null) {
+    window.cancelAnimationFrame(pendingAdRemovalFrame);
+    pendingAdRemovalFrame = null;
+  }
 }
 
-const removeAds = (): void => {
-  if (!isEnabled || isWhitelisted(window.location.href)) return;
-  const hostname = window.location.hostname;
-  const applicableSelectors = [
-    ...selectorMap.general,
-    ...(selectorMap[hostname] || []),
-  ];
-  applicableSelectors.forEach((selector) => {
-    document.querySelectorAll(selector).forEach((el) => el.remove());
-  });
-};
+function disconnectAdBlocker(): void {
+  cancelPendingAdRemoval();
+  if (mutationObserver) {
+    mutationObserver.disconnect();
+    mutationObserver = null;
+  }
+}
 
-const initAdBlocker = (): void => {
-  if (!isEnabled || isWhitelisted(window.location.href)) return;
-  removeAds();
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === "childList") removeAds();
-    });
+function removeAds(): void {
+  if (!isEnabled || isUrlWhitelisted(window.location.href, whitelist)) return;
+  const applicableSelectors = getApplicableSelectors(
+    selectorMap,
+    window.location.hostname,
+  );
+  applicableSelectors.forEach((selector) => {
+    try {
+      document.querySelectorAll(selector).forEach((element) => element.remove());
+    } catch {}
   });
-  observer.observe(document.body, { childList: true, subtree: true });
-};
+}
+
+function scheduleAdRemoval(): void {
+  if (pendingAdRemovalFrame !== null) {
+    return;
+  }
+
+  pendingAdRemovalFrame = window.requestAnimationFrame(() => {
+    pendingAdRemovalFrame = null;
+    removeAds();
+  });
+}
+
+function initAdBlocker(): void {
+  removeAds();
+  mutationObserver = new MutationObserver((mutations) => {
+    if (mutations.some((mutation) => mutation.type === "childList")) {
+      scheduleAdRemoval();
+    }
+  });
+  const observerTarget = document.body ?? document.documentElement;
+  mutationObserver.observe(observerTarget, { childList: true, subtree: true });
+}
+
+function applySyncStorageResult(result: SyncStorageState): void {
+  isEnabled = result.enabled !== false;
+  whitelist = result.whitelist ?? [];
+  selectorMap = result.selectorMap ?? { general: [] };
+  syncAdBlockerWithCurrentState();
+}
+
+function syncAdBlockerWithCurrentState(): void {
+  disconnectAdBlocker();
+  if (!isEnabled || isUrlWhitelisted(window.location.href, whitelist)) return;
+  initAdBlocker();
+}
+
+function applyWhitelistUpdate(updatedWhitelist: string[]): void {
+  whitelist = updatedWhitelist;
+  disconnectAdBlocker();
+  if (isUrlWhitelisted(window.location.href, whitelist)) {
+    if (window.top === window) {
+      location.reload();
+    }
+    return;
+  } else if (isEnabled) {
+    initAdBlocker();
+  }
+}
 
 chrome.storage.sync.get(["selectorMap", "enabled", "whitelist"], (result) => {
-  isEnabled = result.enabled !== false;
-  whitelist = result.whitelist || [];
-  selectorMap = result.selectorMap || { general: [] };
-  if (isEnabled && !isWhitelisted(window.location.href)) initAdBlocker();
+  applySyncStorageResult(result);
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "toggleExtension") {
-    isEnabled = message.enabled;
-    if (isEnabled && !isWhitelisted(window.location.href)) {
-      initAdBlocker();
-    }
-  } else if (message.action === "updateWhitelist") {
-    whitelist = message.whitelist;
-    if (isWhitelisted(window.location.href)) location.reload();
-    else if (isEnabled) initAdBlocker();
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "sync") return;
+  if (changes.enabled) {
+    isEnabled = changes.enabled.newValue !== false;
   }
+  if (changes.selectorMap) {
+    selectorMap = changes.selectorMap.newValue ?? { general: [] };
+  }
+  if (changes.whitelist) {
+    applyWhitelistUpdate(changes.whitelist.newValue ?? []);
+    return;
+  }
+  syncAdBlockerWithCurrentState();
 });

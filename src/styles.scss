@@ -489,6 +489,7 @@ button {
   color: $color-text-secondary;
   border-radius: 8px;
   cursor: pointer;
+  white-space: nowrap;
   transition:
     background-color $duration-fast $easing-standard,
     color $duration-fast $easing-standard;

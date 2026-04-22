@@ -615,7 +615,10 @@ function renderRulesPreview(): void {
 
   if (hiddenCount > 0) {
     rulesPreviewOverflow.hidden = false;
-    rulesPreviewOverflow.textContent = `${hiddenCount} more in Manage all`;
+    rulesPreviewOverflow.textContent =
+      hiddenCount === 1
+        ? "1 more rule not shown"
+        : `${hiddenCount} more rules not shown`;
   } else {
     rulesPreviewOverflow.hidden = true;
     rulesPreviewOverflow.textContent = "";

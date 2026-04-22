@@ -7,27 +7,320 @@
     <script src="main.js" defer></script>
   </head>
   <body>
-    <h1>Noads</h1>
-    <div class="switch-container">
-      <label class="switch">
-        <input type="checkbox" id="extension-toggle" checked />
-        <span class="slider round"></span>
-      </label>
-      <p id="status"></p>
+    <div id="app" class="app" data-view="home" data-state="loading">
+      <header class="app-header">
+        <div class="brand">
+          <span class="brand-logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
+              <path
+                d="M12 2.75 4.5 6v6.25c0 4.53 3.2 7.6 7.5 9 4.3-1.4 7.5-4.47 7.5-9V6L12 2.75Z"
+                fill="#2563EB"
+                fill-opacity="0.12"
+                stroke="#2563EB"
+                stroke-width="1.6"
+                stroke-linejoin="round"
+              />
+              <path
+                d="m8.75 12.25 2.25 2.25 4.25-4.75"
+                stroke="#2563EB"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <span class="brand-wordmark">Noads</span>
+        </div>
+        <button
+          id="global-toggle"
+          class="pill-toggle"
+          type="button"
+          role="switch"
+          aria-checked="true"
+          aria-label="Enable Noads everywhere"
+        >
+          <span class="pill-toggle-thumb" aria-hidden="true"></span>
+        </button>
+      </header>
+
+      <main class="app-main">
+        <section id="view-home" class="view" data-view="home">
+          <article id="status-hero" class="hero" data-status="loading">
+            <div class="hero-accent" aria-hidden="true"></div>
+            <div class="hero-top">
+              <span id="hero-favicon" class="hero-favicon" aria-hidden="true"></span>
+              <span id="hero-hostname" class="hero-hostname"></span>
+              <span id="hero-badge" class="badge badge-neutral">
+                <span class="badge-dot" aria-hidden="true"></span>
+                <span class="badge-label">Loading</span>
+              </span>
+            </div>
+            <h2 id="hero-title" class="hero-title">Checking this page...</h2>
+            <p id="hero-description" class="hero-description"></p>
+            <div class="hero-actions">
+              <button
+                id="hero-primary-action"
+                class="button button-primary"
+                type="button"
+              ></button>
+              <button
+                id="hero-secondary-action"
+                class="button button-ghost"
+                type="button"
+              ></button>
+            </div>
+          </article>
+
+          <article class="card" id="manual-rule-card">
+            <div class="card-head">
+              <h3 class="card-title">Add a custom selector</h3>
+              <p class="card-subtitle">
+                Know the selector already? Add a rule directly.
+              </p>
+            </div>
+            <div class="card-body">
+              <div
+                id="manual-scope-control"
+                class="segmented"
+                role="tablist"
+                aria-label="Rule scope"
+              >
+                <button
+                  class="segmented-option is-active"
+                  type="button"
+                  role="tab"
+                  aria-selected="true"
+                  data-scope="this-site"
+                >
+                  This site
+                </button>
+                <button
+                  class="segmented-option"
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  data-scope="all-sites"
+                >
+                  All sites
+                </button>
+              </div>
+              <p id="manual-scope-hint" class="hint" hidden></p>
+              <label class="field">
+                <span class="visually-hidden">CSS selectors</span>
+                <textarea
+                  id="manual-selectors"
+                  class="textarea"
+                  spellcheck="false"
+                  autocomplete="off"
+                  placeholder="One selector per line&#10;.sponsored&#10;#sidebar-ads"
+                ></textarea>
+              </label>
+              <div class="helper-row">
+                <span class="helper-left">1 selector per line</span>
+                <button
+                  id="manual-show-examples"
+                  class="button button-text"
+                  type="button"
+                >
+                  Need help? Show examples
+                </button>
+              </div>
+              <div id="manual-examples" class="examples" hidden>
+                <code class="examples-row">.sponsored</code>
+                <code class="examples-row">#sidebar-ads</code>
+                <code class="examples-row">div[aria-label="Advertisement"]</code>
+              </div>
+              <p id="manual-error" class="field-error" hidden></p>
+              <button
+                id="manual-submit"
+                class="button button-primary button-block"
+                type="button"
+              >
+                Add rule
+              </button>
+            </div>
+          </article>
+
+          <article class="card" id="rules-preview-card">
+            <div class="card-head card-head-split">
+              <h3 class="card-title">Your rules for this page</h3>
+              <button id="rules-manage-link" class="button button-text" type="button">
+                Manage all
+              </button>
+            </div>
+            <div class="card-body">
+              <ul id="rules-preview-list" class="rule-list" hidden></ul>
+              <p id="rules-preview-overflow" class="hint" hidden></p>
+              <div id="rules-preview-empty" class="empty-state" hidden>
+                <span class="empty-state-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+                    <path
+                      d="m12 4 1.4 3.1L16.5 8.5 13.4 9.9 12 13l-1.4-3.1L7.5 8.5l3.1-1.4L12 4Zm6 9 .9 2L21 16l-2.1.9-.9 2-.9-2L15 16l2.1-.9L18 13Zm-12 3 .7 1.5L8 18l-1.3.5L6 20l-.7-1.5L4 18l1.3-.5L6 16Z"
+                      fill="#2563EB"
+                      fill-opacity="0.16"
+                      stroke="#2563EB"
+                      stroke-width="1.4"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+                <p class="empty-state-title">No custom rules for this page</p>
+                <p class="empty-state-description">
+                  Use the picker to remove a distraction, or add a rule manually.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          <article class="card card-compact" id="paused-summary-card">
+            <div class="paused-summary">
+              <div class="paused-summary-text">
+                <p id="paused-summary-title" class="paused-summary-title"></p>
+                <p class="paused-summary-description">
+                  Pause protection on sites where you don't want Noads to run.
+                </p>
+              </div>
+              <button id="paused-summary-link" class="button button-text" type="button">
+                Manage paused sites
+              </button>
+            </div>
+          </article>
+        </section>
+
+        <section id="view-manage-rules" class="view" data-view="manage-rules" hidden>
+          <header class="subview-header">
+            <button
+              class="icon-button"
+              type="button"
+              data-action="back"
+              aria-label="Back"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+                <path
+                  d="m14 6-6 6 6 6"
+                  stroke="#0F172A"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <h2 class="subview-title">Manage rules</h2>
+            <span class="subview-spacer"></span>
+          </header>
+          <div
+            id="manage-scope"
+            class="segmented segmented-wide"
+            role="tablist"
+            aria-label="Rule scope"
+          >
+            <button
+              class="segmented-option is-active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              data-scope="this-site"
+            >
+              This site
+            </button>
+            <button
+              class="segmented-option"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-scope="all-sites"
+            >
+              All sites
+            </button>
+          </div>
+          <div id="manage-content" class="manage-content"></div>
+        </section>
+
+        <section id="view-paused-sites" class="view" data-view="paused-sites" hidden>
+          <header class="subview-header">
+            <button
+              class="icon-button"
+              type="button"
+              data-action="back"
+              aria-label="Back"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+                <path
+                  d="m14 6-6 6 6 6"
+                  stroke="#0F172A"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <h2 class="subview-title">Paused sites</h2>
+            <span class="subview-spacer"></span>
+          </header>
+          <label class="search-field">
+            <span class="visually-hidden">Search a site</span>
+            <svg
+              class="search-field-icon"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="6.25" stroke="#64748B" stroke-width="1.6" />
+              <path
+                d="m20 20-4.2-4.2"
+                stroke="#64748B"
+                stroke-width="1.6"
+                stroke-linecap="round"
+              />
+            </svg>
+            <input
+              id="paused-search"
+              type="text"
+              class="search-input"
+              placeholder="Search a site"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </label>
+          <ul id="paused-list" class="paused-list"></ul>
+          <div id="paused-empty" class="empty-state empty-state-card" hidden>
+            <p id="paused-empty-title" class="empty-state-title"></p>
+            <p id="paused-empty-description" class="empty-state-description"></p>
+            <button
+              id="paused-empty-action"
+              class="button button-text"
+              type="button"
+              hidden
+            ></button>
+          </div>
+          <div class="paused-add">
+            <label class="field">
+              <span class="visually-hidden">Add a site to pause</span>
+              <input
+                id="paused-add-input"
+                type="text"
+                class="text-input"
+                placeholder="example.com"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </label>
+            <p id="paused-add-error" class="field-error" hidden></p>
+            <button
+              id="paused-add-submit"
+              class="button button-primary button-block"
+              type="button"
+            >
+              Pause this site
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <div id="toast-region" class="toast-region" aria-live="polite"></div>
+      <div id="dialog-root" class="dialog-root" hidden></div>
     </div>
-    <p>Ad-blocking selectors:</p>
-    <div id="selector-tags"></div>
-    <textarea
-      id="selectors-textarea"
-      placeholder="Enter CSS selectors, one per line"
-    ></textarea>
-    <div class="button-container">
-      <button id="add-for-all">Add For All Sites</button>
-      <button id="add-for-current">Add For Current Site</button>
-    </div>
-    <h2>Whitelist Domains</h2>
-    <div id="whitelist-tags"></div>
-    <input type="text" id="whitelist-input" placeholder="Enter domain to whitelist" />
-    <button id="add-to-whitelist">Add to Whitelist</button>
   </body>
 </html>

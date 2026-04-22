@@ -1,5 +1,7 @@
 import { getSyncStorageState } from "./browser";
 import { isUrlWhitelisted } from "./domain";
+import type { RuntimeMessage, RuntimeMessageResponse } from "./messages";
+import { startPicker } from "./picker";
 import { createCachedSelectorValidator } from "./selectorValidation";
 import { getApplicableSelectors } from "./selectors";
 import {
@@ -145,6 +147,30 @@ void getSyncStorageState()
   .catch((error: unknown) => {
     console.error("Failed to load sync storage state.", error);
   });
+
+chrome.runtime.onMessage.addListener(
+  (
+    message: RuntimeMessage,
+    _sender,
+    sendResponse: (response: RuntimeMessageResponse) => void,
+  ) => {
+    if (message.type !== "START_PICKER") {
+      return undefined;
+    }
+
+    if (window.top !== window) {
+      sendResponse({ type: "PICKER_UNAVAILABLE", reason: "not-top-frame" });
+      return false;
+    }
+
+    const hostname = window.location.hostname;
+    const supportsDomainRules = /^https?:$/.test(window.location.protocol);
+
+    void startPicker({ hostname, supportsDomainRules });
+    sendResponse({ type: "PICKER_STARTED" });
+    return false;
+  },
+);
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "sync") {

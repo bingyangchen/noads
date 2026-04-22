@@ -30,10 +30,12 @@ export function normalizeSelectorMap(value: unknown): SelectorMap {
     return defaultSelectorMap;
   }
 
+  const normalizedGeneral = Array.isArray(value.general)
+    ? normalizeStringList(value.general)
+    : [...defaultSelectorMap.general];
+
   const normalizedSelectorMap: SelectorMap = {
-    general: Array.isArray(value.general)
-      ? normalizeStringList(value.general)
-      : [...defaultSelectorMap.general],
+    general: normalizedGeneral,
   };
 
   for (const [hostname, selectors] of Object.entries(value)) {

@@ -1,6 +1,6 @@
 import type { SelectorMap } from "./types";
 
-const DEFAULT_AD_SELECTORS = [
+const SEED_GENERAL_SELECTORS: readonly string[] = [
   "#ad",
   "#ads",
   ".adsbygoogle",
@@ -39,7 +39,7 @@ const DEFAULT_AD_SELECTORS = [
 
 export function createDefaultSelectorMap(): SelectorMap {
   return {
-    general: [...DEFAULT_AD_SELECTORS],
+    general: [...SEED_GENERAL_SELECTORS],
   };
 }
 

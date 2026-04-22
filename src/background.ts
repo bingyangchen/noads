@@ -1,5 +1,4 @@
 import { getRuntimeError, setSyncStorageState, syncStorageKeys } from "./browser";
-import { createDefaultSelectorMap } from "./selectors";
 import {
   normalizeEnabledState,
   normalizeSelectorMap,
@@ -14,27 +13,18 @@ chrome.runtime.onInstalled.addListener(() => {
       return;
     }
 
-    const existingSelectorMap = result.selectorMap;
-    const generalSelectorsMissing = !Array.isArray(existingSelectorMap?.general);
     const enabledMissing = typeof result.enabled !== "boolean";
     const whitelistMissing = !Array.isArray(result.whitelist);
+    const selectorMapMissing = !result.selectorMap;
 
-    if (!generalSelectorsMissing && !enabledMissing && !whitelistMissing) {
+    if (!enabledMissing && !whitelistMissing && !selectorMapMissing) {
       return;
     }
-
-    const defaultSelectorMap = createDefaultSelectorMap();
-    const normalizedSelectorMap = normalizeSelectorMap(existingSelectorMap);
 
     void setSyncStorageState({
       enabled: normalizeEnabledState(result.enabled),
       whitelist: normalizeWhitelist(result.whitelist),
-      selectorMap: generalSelectorsMissing
-        ? {
-            ...normalizedSelectorMap,
-            general: defaultSelectorMap.general,
-          }
-        : normalizedSelectorMap,
+      selectorMap: normalizeSelectorMap(result.selectorMap),
     });
   });
 });
